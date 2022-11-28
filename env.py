@@ -38,7 +38,7 @@ class MPSPEnv(gym.Env):
         np.random.seed(seed)
 
     def reset(self, seed=None):
-        # Reset the state of the environment to an initial state
+        """Reset the state of the environment to an initial state"""
         self.seed(seed)
         self.transportation_matrix = self._get_short_distance_transportation_matrix(
             self.N
@@ -55,10 +55,14 @@ class MPSPEnv(gym.Env):
         )
 
     def step(self, action):
-        # Execute one time step within the environment
+        """Execute one time step within the environment
+        
+        Args:
+            action (int): The action to be executed
+            The first C actions are for adding containers
+            The last C actions are for removing containers
+        """
 
-        # The first C actions are for adding containers
-        # The last C actions are for removing containers
         should_add = action < self.C
         reward = 0
 
@@ -90,7 +94,7 @@ class MPSPEnv(gym.Env):
         )
 
     def print(self):
-        # Prints the environment to the console
+        """Prints the environment to the console"""
         print("Port: {}".format(self.port))
         print("Bay matrix:")
         print(self.bay_matrix)
@@ -108,7 +112,7 @@ class MPSPEnv(gym.Env):
         return container
 
     def _remove_container(self, i, j):
-        # Removes container from bay and returns delta reward
+        """Removes container from bay and returns delta reward"""
 
         # Update state
         container = self.bay_matrix[i, j]
@@ -120,7 +124,7 @@ class MPSPEnv(gym.Env):
         return -1
 
     def _add_container(self, i, j):
-        # Adds container to bay and returns delta reward
+        """Adds container to bay and returns delta reward"""
 
         delta_reward = 0
         self.column_counts[j] += 1
@@ -144,7 +148,7 @@ class MPSPEnv(gym.Env):
         return delta_reward
 
     def _offload_containers(self):
-        # Offloads containers to the port, updates the transportation matrix and returns the number of shifts
+        """Offloads containers to the port, updates the transportation matrix and returns the number of shifts"""
         blocking_containers = 0
 
         for j in range(self.C):
@@ -179,7 +183,7 @@ class MPSPEnv(gym.Env):
         return self.bay_matrix, self.transportation_matrix
 
     def _get_short_distance_transportation_matrix(self, N):
-        # Generates a feasible transportation matrix (short distance)
+        """Generates a feasible transportation matrix (short distance)"""
         output = np.zeros((N, N), dtype=np.int32)
         bay_capacity = self.capacity
 
