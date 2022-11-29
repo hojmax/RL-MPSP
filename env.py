@@ -56,7 +56,7 @@ class MPSPEnv(gym.Env):
 
     def step(self, action):
         """Execute one time step within the environment
-        
+
         Args:
             action (int): The action to be executed
             The first C actions are for adding containers
@@ -95,10 +95,10 @@ class MPSPEnv(gym.Env):
 
     def print(self):
         """Prints the environment to the console"""
-        print("Port: {}".format(self.port))
-        print("Bay matrix:")
+        print(f'Port: {self.port}')
+        print('Bay matrix:')
         print(self.bay_matrix)
-        print("Transportation matrix:")
+        print('Transportation matrix:')
         print(self.transportation_matrix)
 
     def _get_last_destination_container(self):
@@ -140,10 +140,10 @@ class MPSPEnv(gym.Env):
         # Sail along for every zero-row
         while np.sum(self.transportation_matrix[self.port]) == 0:
             self.port += 1
-            if self.port + 1 == self.N:
-                break
             blocking_containers = self._offload_containers()
             delta_reward -= blocking_containers
+            if self.port + 1 == self.N:
+                break
 
         return delta_reward
 
@@ -175,8 +175,8 @@ class MPSPEnv(gym.Env):
 
     def _get_masks(self):
         return {
-            "add_mask": self.column_counts < self.R,
-            "remove_mask": self.column_counts > 0
+            'add_mask': self.column_counts < self.R,
+            'remove_mask': self.column_counts > 0
         }
 
     def _get_observation(self):
