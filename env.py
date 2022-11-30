@@ -101,10 +101,10 @@ class MPSPEnv(gym.Env):
         print("Transportation matrix:")
         print(self.transportation_matrix)
 
-    def _get_last_destination_container(self):
+    def _get_last_destination_container(self, should_print=False):
 
         container = -1
-        for h in range(self.C-1, self.port, -1):
+        for h in range(self.N-1, self.port, -1):
             if self.transportation_matrix[self.port, h] > 0:
                 container = h
                 break
