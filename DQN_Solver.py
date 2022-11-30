@@ -33,7 +33,7 @@ class DQN_Solver:
 
     def learn(self):
         if self.memory.mem_count < self.batch_size:
-            return
+            return 0
 
         states, actions, rewards, states_, dones = self.memory.sample()
         states = torch.tensor(states, dtype=torch.float32).to(self.device)
