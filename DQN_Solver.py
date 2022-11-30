@@ -59,6 +59,8 @@ class DQN_Solver:
         self.exploration_rate *= self.exploration_decay
         self.exploration_rate = max(
             self.exploration_min, self.exploration_rate)
+        
+        return loss.item()
 
     def returning_epsilon(self):
         return self.exploration_rate
