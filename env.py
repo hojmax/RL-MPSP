@@ -101,10 +101,10 @@ class MPSPEnv(gym.Env):
         print('Transportation matrix:')
         print(self.transportation_matrix)
 
-    def _get_last_destination_container(self):
+    def _get_last_destination_container(self, should_print=False):
 
         container = -1
-        for h in range(self.C-1, self.port, -1):
+        for h in range(self.N-1, self.port, -1):
             if self.transportation_matrix[self.port, h] > 0:
                 container = h
                 break
@@ -174,9 +174,14 @@ class MPSPEnv(gym.Env):
         return blocking_containers
 
     def _get_masks(self):
+        """Returns the masks for the actions"""
+        add_mask = self.column_counts < self.R
+        remove_mask = self.column_counts > 0
+        mask = np.concatenate((add_mask, remove_mask), dtype=np.int8)
         return {
-            'add_mask': self.column_counts < self.R,
-            'remove_mask': self.column_counts > 0
+            "add_mask": add_mask,
+            "remove_mask": remove_mask,
+            "mask": mask
         }
 
     def _get_observation(self):
@@ -196,4 +201,9 @@ class MPSPEnv(gym.Env):
             for h in range(i+1):
                 bay_capacity += output[h, i+1]
 
-        return output
+        # Make sure the first row of the transportation matrix has containers
+        # Otherwise you could have skipped the first port
+        if np.sum(output[0]) == 0:
+            return self._get_short_distance_transportation_matrix(N)
+        else:
+            return output
