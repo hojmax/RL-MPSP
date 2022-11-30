@@ -25,6 +25,7 @@ class DQN_Solver:
         state = state.unsqueeze(0)
         q_values = self.network(state).detach()
         q_max = q_values.abs().max()
+        mask = torch.tensor(mask).to(self.device)
         masked_argmax = (
             q_values - 2 * q_max * (1 - mask)
         ).argmax()
