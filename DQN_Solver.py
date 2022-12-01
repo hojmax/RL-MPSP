@@ -27,7 +27,8 @@ class DQN_Solver:
         q_max = q_values.abs().max()
         mask = torch.tensor(mask).to(self.device)
         masked_argmax = (
-            q_values - 2 * q_max * (1 - mask)
+            # 3 is kinda arbitrary. It just needs to be strictly greater than 2
+            q_values - 3 * q_max * (1 - mask)
         ).argmax()
         return masked_argmax.item()
 
@@ -59,7 +60,7 @@ class DQN_Solver:
         self.exploration_rate *= self.exploration_decay
         self.exploration_rate = max(
             self.exploration_min, self.exploration_rate)
-        
+
         return loss.item()
 
     def returning_epsilon(self):

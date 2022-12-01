@@ -1,6 +1,7 @@
 import gym
 from gym import spaces
 import numpy as np
+from IPython.display import clear_output
 
 
 class MPSPEnv(gym.Env):
@@ -139,8 +140,13 @@ class MPSPEnv(gym.Env):
 
         # Sail along for every zero-row
         while np.sum(self.transportation_matrix[self.port]) == 0:
+            clear_output(wait=True)
+            self.print()
             self.port += 1
             blocking_containers = self._offload_containers()
+            self.print()
+            print(f'Blocking containers: {blocking_containers}')
+            input("Press Enter to continue...")
             delta_reward -= blocking_containers
             if self.port + 1 == self.N:
                 break
@@ -154,12 +160,15 @@ class MPSPEnv(gym.Env):
         for j in range(self.C):
             off_loading_column = False
             for i in range(self.R-1, -1, -1):
+                # End of column
                 if self.bay_matrix[i, j] == 0:
                     break
 
+                # Found destionation container
                 if self.bay_matrix[i, j] == self.port:
                     off_loading_column = True
 
+                # Offload destination and blocking containers
                 if off_loading_column:
                     if self.bay_matrix[i, j] != self.port:
                         blocking_containers += 1
