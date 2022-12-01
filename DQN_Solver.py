@@ -17,9 +17,18 @@ class DQN_Solver:
                 "mps" if torch.backends.mps.is_available() else "cpu"
             )
         )
+        self.training = True
+
+    def train(self):
+        self.network.train()
+        self.training = True
+
+    def eval(self):
+        self.network.eval()
+        self.training = False
 
     def choose_action(self, observation, mask, env):
-        if random.random() < self.exploration_rate:
+        if self.training and random.random() < self.exploration_rate:
             return env.action_space.sample(mask)
 
         state = torch.tensor(observation).float().detach()
