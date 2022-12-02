@@ -5,15 +5,22 @@ import torch.optim as optim
 
 
 class DQN(torch.nn.Module):
-    def __init__(self, input_size, output_size, hidden_size_1, hidden_size_2, hidden_size_3, learning_rate):
+    def __init__(self, input_size, output_size, hidden_size, n_layers, learning_rate):
         super().__init__()
         self.input_shape = input_size
         self.action_space = output_size
 
-        self.fc1 = nn.Linear(self.input_shape, hidden_size_1)
-        self.fc2 = nn.Linear(hidden_size_1, hidden_size_2)
-        self.fc3 = nn.Linear(hidden_size_2, hidden_size_3)
-        self.fc4 = nn.Linear(hidden_size_3, self.action_space)
+        layers = [
+            nn.Linear(input_size, hidden_size),
+            nn.ReLU(),
+        ]
+        for _ in range(n_layers - 1):
+            layers.append(nn.Linear(hidden_size, hidden_size))
+            layers.append(nn.ReLU())
+
+        layers.append(nn.Linear(hidden_size, output_size))
+
+        self.model = nn.Sequential(*layers)
 
         self.optimizer = optim.Adam(self.parameters(), lr=learning_rate)
         self.loss = nn.MSELoss()
@@ -26,9 +33,4 @@ class DQN(torch.nn.Module):
         self.to(device)
 
     def forward(self, x):
-        x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
-        x = F.relu(self.fc3(x))
-        x = self.fc4(x)
-
-        return x
+        return self.model(x)
