@@ -62,7 +62,7 @@ class DQN_Solver:
         predicted_value_of_now = q_values[batch_indices, actions]
         predicted_value_of_future = torch.max(next_q_values, dim=1)[0]
 
-        q_target = rewards  # + self.gamma * predicted_value_of_future * dones
+        q_target = rewards + self.gamma * predicted_value_of_future * dones
         if should_print:
             clear_output(wait=True)
             print("Rewards:")
