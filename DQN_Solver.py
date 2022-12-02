@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 import random
+from IPython.display import clear_output
 
 
 class DQN_Solver:
@@ -63,6 +64,7 @@ class DQN_Solver:
 
         q_target = rewards + self.gamma * predicted_value_of_future * dones
         if print:
+            clear_output(wait=True)
             print('Target:')
             print(q_target)
             print('Predicted:')
