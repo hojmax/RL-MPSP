@@ -33,6 +33,7 @@ class MPSPEnv(gym.Env):
         self.bay_matrix = None
         self.column_counts = None
         self.port = None
+        self.is_terminated = False
 
     def seed(self, seed=None):
         np.random.seed(seed)
@@ -46,7 +47,7 @@ class MPSPEnv(gym.Env):
         self.bay_matrix = np.zeros((self.R, self.C), dtype=np.int32)
         self.column_counts = np.zeros(self.C, dtype=np.int32)
         self.port = 0
-
+        self.is_terminated = False
         info = self._get_masks()
 
         return (
@@ -62,6 +63,7 @@ class MPSPEnv(gym.Env):
             The first C actions are for adding containers
             The last C actions are for removing containers
         """
+        assert not self.is_terminated, "Environment is terminated"
 
         should_add = action < self.C
         reward = 0
@@ -70,26 +72,26 @@ class MPSPEnv(gym.Env):
             j = action
             i = self.R - self.column_counts[j] - 1
 
-            # Cannot add containers to full columns
-            assert self.column_counts[j] < self.R
+            assert self.column_counts[j] < self.R, "Cannot add containers to full columns"
 
             reward += self._add_container(i, j)
         else:
             j = action - self.C
             i = self.R - self.column_counts[j]
 
-            # Cannot remove containers from empty columns
-            assert self.column_counts[action - self.C] > 0
+            assert self.column_counts[
+                action - self.C
+            ] > 0, "Cannot remove containers from empty columns"
 
             reward += self._remove_container(i, j)
 
         # Port is zero indexed
-        is_terminated = self.port+1 == self.N
+        self.is_terminated = self.port+1 == self.N
         info = self._get_masks()
         return (
             self._get_observation(),
             reward,
-            is_terminated,
+            self.is_terminated,
             info
         )
 
@@ -131,7 +133,8 @@ class MPSPEnv(gym.Env):
 
         # Find last destination container
         container = self._get_last_destination_container()
-        assert container != -1
+
+        assert container != -1, "No containers to offload"
 
         # Update state
         self.bay_matrix[i, j] = container
