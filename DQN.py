@@ -25,12 +25,17 @@ class DQN(torch.nn.Module):
         self.optimizer = optim.Adam(self.parameters(), lr=learning_rate)
         self.loss = nn.MSELoss()
 
-        device = torch.device(
+        self.device = torch.device(
             "cuda" if torch.cuda.is_available() else (
                 "mps" if torch.backends.mps.is_available() else "cpu"
             )
         )
-        self.to(device)
+        self.to(self.device)
 
     def forward(self, x):
         return self.model(x)
+
+    def load(self, path):
+        self.load_state_dict(
+            torch.load(path, map_location=self.device)
+        )

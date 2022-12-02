@@ -41,9 +41,9 @@ class DQN_Solver:
             # 3 is arbitrary, just needs to be strictly greater than 2
             q_values - 3 * q_max * (1 - mask)
         ).argmax()
-        return masked_argmax.item()
+        return masked_argmax.item(), q_values
 
-    def learn(self):
+    def learn(self, print=False):
         if self.memory.mem_count < self.batch_size:
             return 0
 
@@ -62,7 +62,11 @@ class DQN_Solver:
         predicted_value_of_future = torch.max(next_q_values, dim=1)[0]
 
         q_target = rewards + self.gamma * predicted_value_of_future * dones
-
+        if print:
+            print('Target:')
+            print(q_target)
+            print('Predicted:')
+            print(predicted_value_of_now)
         loss = self.network.loss(q_target, predicted_value_of_now)
         self.network.optimizer.zero_grad()
         loss.backward()
