@@ -30,7 +30,7 @@ class DQN_Solver:
 
     def choose_action(self, observation, mask, env):
         if self.training and random.random() < self.exploration_rate:
-            return env.action_space.sample(mask)
+            return env.action_space.sample(mask), None
 
         state = torch.tensor(observation).float().detach()
         state = state.to(self.device)
@@ -44,7 +44,7 @@ class DQN_Solver:
         ).argmax()
         return masked_argmax.item(), q_values
 
-    def learn(self, print=False):
+    def learn(self, should_print=False):
         if self.memory.mem_count < self.batch_size:
             return 0
 
@@ -63,8 +63,10 @@ class DQN_Solver:
         predicted_value_of_future = torch.max(next_q_values, dim=1)[0]
 
         q_target = rewards + self.gamma * predicted_value_of_future * dones
-        if print:
+        if should_print:
             clear_output(wait=True)
+            print("Rewards:")
+            print(rewards)
             print('Target:')
             print(q_target)
             print('Predicted:')
