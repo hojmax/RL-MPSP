@@ -5,7 +5,15 @@ import torch.optim as optim
 
 
 class DQN(torch.nn.Module):
-    def __init__(self, input_size, output_size, hidden_size, n_layers, learning_rate):
+    def __init__(
+        self,
+        input_size,
+        output_size,
+        hidden_size,
+        n_layers,
+        learning_rate,
+        adam_epsilon
+    ):
         super().__init__()
         self.input_shape = input_size
         self.action_space = output_size
@@ -22,7 +30,11 @@ class DQN(torch.nn.Module):
 
         self.model = nn.Sequential(*layers)
 
-        self.optimizer = optim.Adam(self.parameters(), lr=learning_rate)
+        self.optimizer = optim.Adam(
+            self.parameters(),
+            lr=learning_rate,
+            eps=adam_epsilon
+        )
         self.loss = nn.MSELoss()
 
         self.device = torch.device(

@@ -6,10 +6,10 @@ class ReplayBuffer:
         self.mem_count = 0
         self.mem_size = mem_size
         self.batch_size = batch_size
-        self.states = np.zeros((mem_size, observation_space), dtype=np.int64)
+        self.states = np.zeros((mem_size, observation_space), dtype=np.float32)
         self.actions = np.zeros(mem_size, dtype=np.int64)
-        self.rewards = np.zeros(mem_size, dtype=np.int64)
-        self.states_ = np.zeros((mem_size, observation_space), dtype=np.int64)
+        self.rewards = np.zeros(mem_size, dtype=np.float32)
+        self.states_ = np.zeros((mem_size, observation_space), dtype=np.float32)
         self.dones = np.zeros(mem_size, dtype=bool)
 
     def add(self, state, action, reward, state_, done):

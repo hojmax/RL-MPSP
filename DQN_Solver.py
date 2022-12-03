@@ -50,12 +50,16 @@ class DQN_Solver:
 
         states, actions, rewards, states_, dones = self.memory.sample()
         states = torch.tensor(states, dtype=torch.float32).to(self.device)
-        actions = torch.tensor(actions, dtype=torch.long).to(self.device)
+        actions = torch.tensor(actions, dtype=torch.int64).to(self.device)
         rewards = torch.tensor(rewards, dtype=torch.float32).to(self.device)
         states_ = torch.tensor(states_, dtype=torch.float32).to(self.device)
         dones = torch.tensor(dones, dtype=torch.bool).to(self.device)
         batch_indices = np.arange(self.batch_size, dtype=np.int64)
-
+        # print("states", states)
+        # print("actions", actions)
+        # print("rewards", rewards)
+        # print("states_", states_)
+        # print("dones", dones)
         q_values = self.network(states)
         next_q_values = self.network(states_)
 
@@ -78,7 +82,9 @@ class DQN_Solver:
 
         self.exploration_rate *= self.exploration_decay
         self.exploration_rate = max(
-            self.exploration_min, self.exploration_rate)
+            self.exploration_min,
+            self.exploration_rate
+        )
 
         return loss.item()
 
