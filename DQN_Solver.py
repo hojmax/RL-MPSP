@@ -55,18 +55,13 @@ class DQN_Solver:
         states_ = torch.tensor(states_, dtype=torch.float32).to(self.device)
         dones = torch.tensor(dones, dtype=torch.bool).to(self.device)
         batch_indices = np.arange(self.batch_size, dtype=np.int64)
-        # print("states", states)
-        # print("actions", actions)
-        # print("rewards", rewards)
-        # print("states_", states_)
-        # print("dones", dones)
         q_values = self.network(states)
         next_q_values = self.network(states_)
 
         predicted_value_of_now = q_values[batch_indices, actions]
         predicted_value_of_future = torch.max(next_q_values, dim=1)[0]
 
-        q_target = rewards + self.gamma * predicted_value_of_future * dones
+        q_target = rewards #+ self.gamma * predicted_value_of_future * dones
         if should_print:
             clear_output(wait=True)
             print("Rewards:")
