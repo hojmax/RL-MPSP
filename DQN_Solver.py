@@ -5,11 +5,24 @@ from IPython.display import clear_output
 
 
 class DQN_Solver:
-    def __init__(self, ReplayBuffer, DQN, target_DQN, batch_size, exploration_max, gamma, exploration_decay, exploration_min, target_update_freq):
+    def __init__(
+        self,
+        ReplayBuffer,
+        DQN,
+        target_DQN,
+        batch_size,
+        exploration_max,
+        gamma,
+        exploration_decay,
+        exploration_min,
+        target_update_freq,
+        gradient_clip
+    ):
         self.memory = ReplayBuffer
         self.batch_size = batch_size
         self.gamma = gamma
         self.exploration_decay = exploration_decay
+        self.gradient_clip = gradient_clip
         self.exploration_min = exploration_min
         self.exploration_rate = exploration_max
         self.network = DQN
@@ -77,6 +90,10 @@ class DQN_Solver:
         loss = self.network.loss(q_target, predicted_value_of_now)
         self.network.optimizer.zero_grad()
         loss.backward()
+        torch.nn.utils.clip_grad_norm_(
+            self.network.parameters(),
+            self.gradient_clip
+        )
         self.network.optimizer.step()
 
         self.exploration_rate *= self.exploration_decay
