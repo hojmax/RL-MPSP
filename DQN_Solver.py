@@ -5,7 +5,7 @@ from IPython.display import clear_output
 
 
 class DQN_Solver:
-    def __init__(self, ReplayBuffer, DQN, batch_size, exploration_max, gamma, exploration_decay, exploration_min):
+    def __init__(self, ReplayBuffer, DQN, target_DQN, batch_size, exploration_max, gamma, exploration_decay, exploration_min, target_update_freq):
         self.memory = ReplayBuffer
         self.batch_size = batch_size
         self.gamma = gamma
@@ -13,11 +13,14 @@ class DQN_Solver:
         self.exploration_min = exploration_min
         self.exploration_rate = exploration_max
         self.network = DQN
+        self.target_network = target_DQN
+        self.target_update_freq = target_update_freq
         self.device = torch.device(
             "cuda" if torch.cuda.is_available() else (
                 "mps" if torch.backends.mps.is_available() else "cpu"
             )
         )
+        self.train_count = 0
         self.training = True
 
     def train(self):
@@ -48,6 +51,7 @@ class DQN_Solver:
         if self.memory.mem_count < self.batch_size:
             return 0
 
+        self.train_count += 1
         states, actions, rewards, states_, dones = self.memory.sample()
         states = torch.tensor(states, dtype=torch.float32).to(self.device)
         actions = torch.tensor(actions, dtype=torch.int64).to(self.device)
@@ -56,7 +60,7 @@ class DQN_Solver:
         dones = torch.tensor(dones, dtype=torch.bool).to(self.device)
         batch_indices = np.arange(self.batch_size, dtype=np.int64)
         q_values = self.network(states)
-        next_q_values = self.network(states_)
+        next_q_values = self.target_network(states_)
 
         predicted_value_of_now = q_values[batch_indices, actions]
         predicted_value_of_future = torch.max(next_q_values, dim=1)[0]
@@ -80,6 +84,9 @@ class DQN_Solver:
             self.exploration_min,
             self.exploration_rate
         )
+
+        if self.train_count % self.target_update_freq == 0:
+            self.target_network.load_state_dict(self.network.state_dict())
 
         return loss.item()
 
