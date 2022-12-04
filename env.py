@@ -12,6 +12,7 @@ class MPSPEnv(gym.Env):
         self.C = columns
         self.N = n_ports
         self.capacity = self.R * self.C
+        self.terminated_reward = 10
         # You can add or remove a container for every column
         self.action_space = spaces.Discrete(2 * self.C)
         bay_matrix_def = spaces.Box(
@@ -87,6 +88,10 @@ class MPSPEnv(gym.Env):
 
         # Port is zero indexed
         self.is_terminated = self.port+1 == self.N
+
+        if self.is_terminated:
+            reward += self.terminated_reward
+
         info = self._get_masks()
         return (
             self._get_observation(),
