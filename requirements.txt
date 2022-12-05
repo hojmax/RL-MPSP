@@ -1,2 +1,3 @@
 gym==0.26.2
 wandb==0.13.5
+stable-baselines3==1.6.2
