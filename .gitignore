@@ -4,3 +4,5 @@ wandb
 run.txt
 saved_models
 saved_models/dqn.pt
+models
+runs
