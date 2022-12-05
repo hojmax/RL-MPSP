@@ -1,6 +1,7 @@
 import gym
 from gym import spaces
 import numpy as np
+import types
 
 
 class MPSPEnv(gym.Env):
@@ -23,7 +24,7 @@ class MPSPEnv(gym.Env):
         )
         transportation_matrix_def = spaces.Box(
             low=0,
-            high=float("inf"),
+            high=np.iinfo(np.int32).max,
             shape=(self.N, self.N),
             dtype=np.int32
         )
@@ -49,12 +50,8 @@ class MPSPEnv(gym.Env):
         self.column_counts = np.zeros(self.C, dtype=np.int32)
         self.port = 0
         self.is_terminated = False
-        info = self._get_masks()
 
-        return (
-            self._get_observation(),
-            info
-        )
+        return self._get_observation()
 
     def step(self, action):
         """Execute one time step within the environment
@@ -93,12 +90,19 @@ class MPSPEnv(gym.Env):
             reward += self.terminated_reward
 
         info = self._get_masks()
+
         return (
             self._get_observation(),
             reward,
             self.is_terminated,
             info
         )
+
+    def get_action_mask(self):
+        return self._get_masks()["mask"]
+
+    def close(self):
+        pass
 
     def print(self):
         """Prints the environment to the console"""
@@ -215,3 +219,25 @@ class MPSPEnv(gym.Env):
             return self._get_short_distance_transportation_matrix(N)
         else:
             return output
+
+
+def MPSPObservationWrapper(env):
+    """Observation wrapper (flattening) for the MPSPEnv environment."""
+    env.observation_space = spaces.Box(
+        low=0,
+        high=np.iinfo(np.int32).max,
+        shape=(env.R * env.C + env.N * env.N,),
+        dtype=np.int32
+    )
+
+    def _new_get_observation(self):
+        return np.concatenate(
+            (
+                self.bay_matrix.flatten(),
+                self.transportation_matrix.flatten()
+            )
+        )
+
+    env._get_observation = types.MethodType(_new_get_observation, env)
+
+    return env
