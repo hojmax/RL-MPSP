@@ -28,9 +28,10 @@ class MPSPEnv(gym.Env):
             shape=(self.N, self.N),
             dtype=np.int32
         )
-        self.observation_space = spaces.Tuple(
-            (bay_matrix_def, transportation_matrix_def)
-        )
+        self.observation_space = spaces.Dict({
+            'bay_matrix': bay_matrix_def,
+            'transportation_matrix': transportation_matrix_def
+        })
         self.transportation_matrix = None
         self.bay_matrix = None
         self.column_counts = None
@@ -197,7 +198,10 @@ class MPSPEnv(gym.Env):
         }
 
     def _get_observation(self):
-        return self.bay_matrix, self.transportation_matrix
+        return {
+            'bay_matrix': self.bay_matrix,
+            'transportation_matrix': self.transportation_matrix
+        }
 
     def _get_short_distance_transportation_matrix(self, N):
         """Generates a feasible transportation matrix (short distance)"""
