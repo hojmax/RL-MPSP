@@ -1,8 +1,11 @@
 ## 🏄‍♂️ Usage
+
 ### Local
+
 For local use, simply run the `main.ipynb` notebook.
 
 ### Colab
+
 When using colab, upload the `main.ipynb` notebook. Afterwards, add a cell to the top of the notebook with the following content:
 
 ```python
@@ -11,10 +14,14 @@ When using colab, upload the `main.ipynb` notebook. Afterwards, add a cell to th
 !pip install -r requirements.txt
 ```
 
-When pushing to the repository, you need to run ```!git pull``` and restart the runtime for the changes to take effect.
+When pushing to the repository, you need to run `!git pull` and restart the runtime for the changes to take effect.
 
 ## 🏋️ Weights & Biases
 
 You will need an API key when connecting. This can be found in your settings.
 
-You can access [our W&B team here](https://wandb.ai/rl-msps). 
+You can access [our W&B team here](https://wandb.ai/rl-msps).
+
+## Benchmarking
+
+The benchmarking data is obtained from the authors of the 2019 paper "Solution Strategies for a Multiport Container Ship Stowage Problem". They are available from the author (consuelo.parreno@uv.es) upon request.
