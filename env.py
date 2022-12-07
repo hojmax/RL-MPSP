@@ -13,7 +13,7 @@ class MPSPEnv(gym.Env):
         self.C = columns
         self.N = n_ports
         self.capacity = self.R * self.C
-        self.terminated_reward = 10
+        self.terminated_reward = 0
         # You can add or remove a container for every column
         self.action_space = spaces.Discrete(2 * self.C)
         bay_matrix_def = spaces.Box(
@@ -37,16 +37,24 @@ class MPSPEnv(gym.Env):
         self.column_counts = None
         self.port = None
         self.is_terminated = False
+        self.virtual_R = None
+        self.virtual_C = None
 
-    def seed(self, seed=None):
-        np.random.seed(seed)
+    def set_virtual_dimensions(self, virtual_R, virtual_C):
+        """Limits the number of rows and columns that are accessible to the agent"""
+        assert virtual_R < self.R, "Virtual R must be smaller than R"
+        assert virtual_C < self.C, "Virtual C must be smaller than C"
+        assert virtual_R > 0, "Virtual R must be strictly positive"
+        assert virtual_C > 0, "Virtual C must be strictly positive"
+        self.virtual_R = virtual_R
+        self.virtual_C = virtual_C
 
-    def reset(self, seed=None):
+    def reset(self, transportation_matrix=None, seed=None):
         """Reset the state of the environment to an initial state"""
-        self.seed(seed)
+        super().reset(seed=seed)
         self.transportation_matrix = self._get_short_distance_transportation_matrix(
             self.N
-        )
+        ) if transportation_matrix is None else transportation_matrix
         self.bay_matrix = np.zeros((self.R, self.C), dtype=np.int32)
         self.column_counts = np.zeros(self.C, dtype=np.int32)
         self.port = 0
@@ -188,9 +196,27 @@ class MPSPEnv(gym.Env):
 
     def _get_masks(self):
         """Returns the masks for the actions"""
-        add_mask = self.column_counts < self.R
+
+        # Masking out full columns
+        add_mask = (
+            self.column_counts < self.R
+            if self.virtual_R is None
+            else self.column_counts < self.virtual_R
+        )
+
+        if self.virtual_C is not None:
+            # Masking out columns that are not accessible
+            add_mask = np.logical_and(
+                add_mask,
+                # Can only use first virtual_C columns
+                np.arange(self.C) < self.virtual_C
+            )
+
+        # Masking out empty columns
         remove_mask = self.column_counts > 0
+
         mask = np.concatenate((add_mask, remove_mask), dtype=np.int8)
+
         return {
             "add_mask": add_mask,
             "remove_mask": remove_mask,
