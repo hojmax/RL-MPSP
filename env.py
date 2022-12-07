@@ -49,9 +49,12 @@ class MPSPEnv(gym.Env):
         self.virtual_R = virtual_R
         self.virtual_C = virtual_C
 
+    def seed(self, seed=None):
+        np.random.seed(seed)
+
     def reset(self, transportation_matrix=None, seed=None):
         """Reset the state of the environment to an initial state"""
-        super().reset(seed=seed)
+        self.seed(seed)
         self.transportation_matrix = self._get_short_distance_transportation_matrix(
             self.N
         ) if transportation_matrix is None else transportation_matrix
