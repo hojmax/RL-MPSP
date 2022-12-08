@@ -39,6 +39,7 @@ class MPSPEnv(gym.Env):
         self.is_terminated = False
         self.virtual_R = None
         self.virtual_C = None
+        self.virtual_Capacity = None
 
     def set_virtual_dimensions(self, virtual_R, virtual_C):
         """Limits the number of rows and columns that are accessible to the agent"""
@@ -48,6 +49,7 @@ class MPSPEnv(gym.Env):
         assert virtual_C > 0, "Virtual C must be strictly positive"
         self.virtual_R = virtual_R
         self.virtual_C = virtual_C
+        self.virtual_Capacity = self.virtual_R * self.virtual_C
 
     def seed(self, seed=None):
         np.random.seed(seed)
@@ -235,7 +237,7 @@ class MPSPEnv(gym.Env):
     def _get_short_distance_transportation_matrix(self, N):
         """Generates a feasible transportation matrix (short distance)"""
         output = np.zeros((N, N), dtype=np.int32)
-        bay_capacity = self.capacity
+        bay_capacity = self.capacity if self.virtual_Capacity is None else self.virtual_Capacity
 
         for i in range(N-1):
             for j in range(i+1, N):
