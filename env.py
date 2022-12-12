@@ -103,7 +103,9 @@ class MPSPEnv(gym.Env):
         if self.is_terminated:
             reward += self.terminated_reward
 
-        info = self._get_masks()
+        info = {
+            "mask": self.action_masks()
+        }
 
         return (
             self._get_observation(),
@@ -112,8 +114,30 @@ class MPSPEnv(gym.Env):
             info
         )
 
-    def get_action_mask(self):
-        return self._get_masks()["mask"]
+    def action_masks(self):
+        """Returns a mask for the actions (True if the action is valid, False otherwise)."""
+
+        # Masking out full columns
+        add_mask = (
+            self.column_counts < self.R
+            if self.virtual_R is None
+            else self.column_counts < self.virtual_R
+        )
+
+        if self.virtual_C is not None:
+            # Masking out columns that are not accessible
+            add_mask = np.logical_and(
+                add_mask,
+                # Can only use first virtual_C columns
+                np.arange(self.C) < self.virtual_C
+            )
+
+        # Masking out empty columns
+        remove_mask = self.column_counts > 0
+
+        mask = np.concatenate((add_mask, remove_mask), dtype=np.int8)
+
+        return mask
 
     def close(self):
         pass
@@ -198,35 +222,6 @@ class MPSPEnv(gym.Env):
                     self.column_counts[j] -= 1
 
         return blocking_containers
-
-    def _get_masks(self):
-        """Returns the masks for the actions"""
-
-        # Masking out full columns
-        add_mask = (
-            self.column_counts < self.R
-            if self.virtual_R is None
-            else self.column_counts < self.virtual_R
-        )
-
-        if self.virtual_C is not None:
-            # Masking out columns that are not accessible
-            add_mask = np.logical_and(
-                add_mask,
-                # Can only use first virtual_C columns
-                np.arange(self.C) < self.virtual_C
-            )
-
-        # Masking out empty columns
-        remove_mask = self.column_counts > 0
-
-        mask = np.concatenate((add_mask, remove_mask), dtype=np.int8)
-
-        return {
-            "add_mask": add_mask,
-            "remove_mask": remove_mask,
-            "mask": mask
-        }
 
     def _get_observation(self):
         return {
