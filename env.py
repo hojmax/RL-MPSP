@@ -202,17 +202,18 @@ class MPSPEnv(gym.Env):
         blocking_containers = 0
 
         for j in range(self.C):
-            off_loading_column = False
+            offloading_column = False
             for i in range(self.R-1, -1, -1):
                 if self.bay_matrix[i, j] == 0:
                     break
 
                 if self.bay_matrix[i, j] == self.port:
-                    off_loading_column = True
+                    offloading_column = True
 
-                if off_loading_column:
+                if offloading_column:
                     if self.bay_matrix[i, j] != self.port:
                         blocking_containers += 1
+                        # Add container back into transportation matrix
                         self.transportation_matrix[
                             self.port,
                             self.bay_matrix[i, j]
@@ -249,25 +250,3 @@ class MPSPEnv(gym.Env):
             return self._get_short_distance_transportation_matrix(N)
         else:
             return output
-
-
-def MPSPObservationWrapper(env):
-    """Observation wrapper (flattening) for the MPSPEnv environment."""
-    env.observation_space = spaces.Box(
-        low=0,
-        high=np.iinfo(np.int32).max,
-        shape=(env.R * env.C + env.N * env.N,),
-        dtype=np.int32
-    )
-
-    def _new_get_observation(self):
-        return np.concatenate(
-            (
-                self.bay_matrix.flatten(),
-                self.transportation_matrix.flatten()
-            )
-        )
-
-    env._get_observation = types.MethodType(_new_get_observation, env)
-
-    return env
