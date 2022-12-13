@@ -143,14 +143,13 @@ class MPSPEnv(gym.Env):
         pass
 
     def print(self):
-        """Prints the environment to the console"""
         print(f'Port: {self.port}')
         print('Bay matrix:')
         print(self.bay_matrix)
         print('Transportation matrix:')
         print(self.transportation_matrix)
 
-    def _get_last_destination_container(self, should_print=False):
+    def _get_last_destination_container(self):
 
         container = -1
         for h in range(self.N-1, self.port, -1):
@@ -204,23 +203,28 @@ class MPSPEnv(gym.Env):
         for j in range(self.C):
             offloading_column = False
             for i in range(self.R-1, -1, -1):
+                # We reached top of stack
                 if self.bay_matrix[i, j] == 0:
                     break
 
+                # If true, we must offload this container and all containers above it
                 if self.bay_matrix[i, j] == self.port:
                     offloading_column = True
 
-                if offloading_column:
-                    if self.bay_matrix[i, j] != self.port:
-                        blocking_containers += 1
-                        # Add container back into transportation matrix
-                        self.transportation_matrix[
-                            self.port,
-                            self.bay_matrix[i, j]
-                        ] += 1
+                if not offloading_column:
+                    continue
 
-                    self.bay_matrix[i, j] = 0
-                    self.column_counts[j] -= 1
+                if self.bay_matrix[i, j] != self.port:
+                    blocking_containers += 1
+                    # Add container back into transportation matrix
+                    destination_port = self.bay_matrix[i, j]
+                    self.transportation_matrix[
+                        self.port,
+                        destination_port
+                    ] += 1
+
+                self.bay_matrix[i, j] = 0
+                self.column_counts[j] -= 1
 
         return blocking_containers
 
