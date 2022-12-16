@@ -2,7 +2,13 @@ import gym
 from gym import spaces
 import numpy as np
 import types
+import pygame
+from enum import Enum
 
+class text_type(Enum):
+        CELL = 20
+        HEADLINE = 36
+        SUBHEADLINE = 28
 
 class MPSPEnv(gym.Env):
     """Environment for the Multi Port Shipping Problem"""
@@ -14,6 +20,9 @@ class MPSPEnv(gym.Env):
         self.N = n_ports
         self.capacity = self.R * self.C
         self.terminated_reward = 0
+        self.screen = None
+
+
         # You can add or remove a container for every column
         self.action_space = spaces.Discrete(2 * self.C)
         bay_matrix_def = spaces.Box(
@@ -148,6 +157,182 @@ class MPSPEnv(gym.Env):
         print(self.bay_matrix)
         print('Transportation matrix:')
         print(self.transportation_matrix)
+
+
+    def render(self, mode='human'):
+
+        if mode == 'human':
+            self._render_human()
+
+
+
+    def _render_human(self):
+
+        # Initialise screen
+        H, W = 400, 600
+        if self.screen is None:
+            self.colors = {n: tuple(256/2+np.random.randint(256/2, size=3)) for n in range(self.N)}
+
+            pygame.init()
+            pygame.display.init()
+            self.screen = pygame.display.set_mode((W, H))
+
+        # Fill background
+        self.surface = pygame.Surface(self.screen.get_size())
+        self.surface = self.surface.convert()
+        self.surface.fill((255, 255, 255))
+
+        PADDING = 20
+
+        # Render current port
+        self._render_text(f'Port: {self.port}', pos=(W/2, PADDING), font_size=text_type.HEADLINE)
+
+        # Render the bay matrix and transportation matrix
+        CELL_SIZE = 20
+        frame_size = (self.C * CELL_SIZE, self.R * CELL_SIZE)
+        self._render_bay(cell_size=CELL_SIZE, pos=(W/2-frame_size[0]-PADDING/2,PADDING*3))
+        self._render_transportation_matrix(cell_size=CELL_SIZE, pos=(W/2+PADDING/2,PADDING*3))
+
+        # Render the container explanation
+        self._render_container_explanation(cell_size=CELL_SIZE, pos=(W/2-frame_size[0]-PADDING/2, PADDING*5 + frame_size[1]))
+        
+
+
+        # Blit everything to the screen
+        pygame.event.pump()
+        self.screen.fill(0)
+        self.screen.blit(self.surface, (0, 0))
+        pygame.display.flip()
+
+
+    def _render_container_explanation(self, cell_size, pos=(0, 0)):
+        """Renders the container explanation"""
+        assert self.screen is not None, "Screen must be initialised"
+        x, y = pos
+
+        for i, color in enumerate(self.colors.values()):
+
+            self._render_text(f'{i}', pos=(x + cell_size*i + cell_size/2, y))
+
+            text_offset = 15
+            pygame.draw.rect(
+                self.surface,
+                color,
+                (
+                    x + i * cell_size,
+                    y + text_offset,
+                    cell_size,
+                    cell_size
+                )
+            )
+
+            
+
+
+    def _render_bay(self, cell_size, pos=(0, 0)):
+        """Renders the bay matrix"""
+        assert self.screen is not None, "Screen must be initialised"
+        
+
+        x, y = pos
+
+        center_x, center_y = (x + self.C * cell_size / 2, y + self.R * cell_size / 2)
+        self._render_text(f'Bay', pos=(center_x, y))
+
+        text_offset = 15
+        # Draw the grid lines and the containers
+        for i in range(self.R):
+            for j in range(self.C):
+                # Draw the grid lines
+                pygame.draw.rect(
+                    self.surface,
+                    (0, 0, 0),
+                    (
+                        x + j * cell_size,
+                        y + text_offset + i * cell_size,
+                        cell_size,
+                        cell_size
+                    ),
+                    1
+                )
+
+                # Draw the containers
+                container = self.bay_matrix[i, j]
+                if container > 0:
+                    pygame.draw.rect(
+                        self.surface,
+                        self.colors[container],
+                        (
+                            x + j * cell_size,
+                            y + text_offset + i * cell_size,
+                            cell_size,
+                            cell_size
+                        )
+                    )
+
+
+
+
+    def _render_transportation_matrix(self, cell_size, pos=(0, 0)):
+        """Renders the transportation matrix"""
+        assert self.screen is not None, "Screen must be initialised"
+
+        x, y = pos
+
+        center_x, center_y = (x + self.N * cell_size / 2, y + self.N * cell_size / 2)
+        self._render_text(f'Transportation', pos=(center_x, y))
+
+
+        text_offset = 15
+        # Draw the grid lines and the containers
+        for i in range(self.N):
+            for j in range(self.N):
+                # Draw the grid lines
+                pygame.draw.rect(
+                    self.surface,
+                    (0, 0, 0),
+                    (
+                        x + j * cell_size,
+                        y + text_offset + i * cell_size,
+                        cell_size,
+                        cell_size
+                    ),
+                    1
+                )
+
+                # Draw the containers
+                count = self.transportation_matrix[i, j]
+                if count > 0:
+                    pygame.draw.rect(
+                        self.surface,
+                        self.colors[j],
+                        (
+                            x + j * cell_size,
+                            y + text_offset + i * cell_size,
+                            cell_size,
+                            cell_size
+                        )
+                    )
+
+                    self._render_text(
+                        f'{count}',
+                        pos=(
+                            x + j * cell_size + cell_size/2
+                            , y + text_offset + i * cell_size + cell_size/2
+                            ),
+                        font_size=text_type.CELL
+                        )
+
+
+    def _render_text(self, text, pos=(0, 0), font_size: text_type=text_type.SUBHEADLINE):
+        """Renders the text"""
+        assert self.screen is not None, "Screen must be initialised"
+
+        font = pygame.font.Font(None, font_size.value)
+        text_surface = font.render(text, True, (10, 10, 10))
+        text_rect = text_surface.get_rect(center=pos)
+        self.surface.blit(text_surface, text_rect)
+
 
     def _get_last_destination_container(self):
 
