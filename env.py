@@ -222,12 +222,14 @@ class MPSPEnv(gym.Env):
 
         # Draw to rows of probabilities. One for adding and one for removing.
         # Draw a box for each action. Remove are below the add boxes.
-        # The box with the action is green if add and red if remove, the rest are without color.
+        # Color the box darker green depending on the probability
+        # If it is the action, make the border thicker
+        gradient = helpers.get_color_gradient('#dd3e54', '#6be585', 100)
         for i, prob in enumerate(probs):
-            if i < self.C:
-                color = (0, 255, 0) if action == i else (0, 0, 0)
-            else:
-                color = (255, 0, 0) if action == i else (0, 0, 0)
+            prob = int(prob*100)
+            color = gradient[prob]
+
+            # Draw the colored box
             pygame.draw.rect(
                 self.surface,
                 color,
@@ -237,11 +239,24 @@ class MPSPEnv(gym.Env):
                     cell_size,
                     cell_size
                 ),
-                0 if action == i else 1
             )
 
+            # Draw the border if it is the action
+            if i == action:
+                pygame.draw.rect(
+                    self.surface,
+                    (0, 0, 0),
+                    (
+                        x + i * cell_size if i < self.C else x + (i - self.C) * cell_size,
+                        y if i < self.C else y + cell_size,
+                        cell_size,
+                        cell_size
+                    ),
+                    2
+                )
+
             self._render_text(
-                f'{prob*100:.0f}',
+                f'{prob}',
                 pos=(
                     x + i * cell_size + cell_size/2 if i < self.C else x + (i - self.C) * cell_size + cell_size/2,
                     y + cell_size/2 if i < self.C else y + cell_size + cell_size/2
@@ -290,18 +305,6 @@ class MPSPEnv(gym.Env):
         # Draw the grid lines and the containers
         for i in range(self.R):
             for j in range(self.C):
-                # Draw the grid lines
-                pygame.draw.rect(
-                    self.surface,
-                    (0, 0, 0),
-                    (
-                        x + j * cell_size,
-                        y + text_offset + i * cell_size,
-                        cell_size,
-                        cell_size
-                    ),
-                    1
-                )
 
                 # Draw the containers
                 container = self.bay_matrix[i, j]
@@ -317,12 +320,25 @@ class MPSPEnv(gym.Env):
                         )
                     )
 
+                # Draw the grid lines
+                pygame.draw.rect(
+                    self.surface,
+                    (0, 0, 0),
+                    (
+                        x + j * cell_size,
+                        y + text_offset + i * cell_size,
+                        cell_size,
+                        cell_size
+                    ),
+                    1
+                )
+
                 # Draw a little B for all blocking containers
                 if blocking_containers[i, j] == 1:
                     self._render_text(
                         'B',
                         pos=(x + j * cell_size + cell_size*3/4, y + text_offset + i * cell_size + cell_size/4),
-                        font_size=15
+                        font_size=13
                     )
 
 
