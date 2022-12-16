@@ -196,9 +196,25 @@ class MPSPEnv(gym.Env):
 
         return delta_reward
 
+    def _get_blocking(self):
+        """Returns a matrix of blocking containers (1 if blocking, 0 otherwise)"""
+        blocking_containers = np.zeros((self.R, self.C), dtype=np.int32)
+
+        for j in range(self.C):
+            min_in_column = np.inf
+            for i in range(self.R-1, -1, -1):
+                if self.bay_matrix[i, j] == 0:
+                    break
+                if self.bay_matrix[i, j] < min_in_column:
+                    min_in_column = self.bay_matrix[i, j]
+                if self.bay_matrix[i, j] > min_in_column:
+                    blocking_containers[i, j] = 1
+
+        return blocking_containers
+
     def _offload_containers(self):
         """Offloads containers to the port, updates the transportation matrix and returns the number of shifts"""
-        blocking_containers = 0
+        n_blocking_containers = 0
 
         for j in range(self.C):
             offloading_column = False
@@ -215,7 +231,7 @@ class MPSPEnv(gym.Env):
                     continue
 
                 if self.bay_matrix[i, j] != self.port:
-                    blocking_containers += 1
+                    n_blocking_containers += 1
                     # Add container back into transportation matrix
                     destination_port = self.bay_matrix[i, j]
                     self.transportation_matrix[
@@ -226,7 +242,7 @@ class MPSPEnv(gym.Env):
                 self.bay_matrix[i, j] = 0
                 self.column_counts[j] -= 1
 
-        return blocking_containers
+        return n_blocking_containers
 
     def _get_observation(self):
         return {
