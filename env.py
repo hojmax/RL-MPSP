@@ -285,6 +285,8 @@ class MPSPEnv(gym.Env):
         self._render_text(f'Bay', pos=(center_x, y))
 
         text_offset = 15
+        blocking_containers = self._get_blocking()
+
         # Draw the grid lines and the containers
         for i in range(self.R):
             for j in range(self.C):
@@ -313,6 +315,14 @@ class MPSPEnv(gym.Env):
                             cell_size,
                             cell_size
                         )
+                    )
+
+                # Draw a little B for all blocking containers
+                if blocking_containers[i, j] == 1:
+                    self._render_text(
+                        'B',
+                        pos=(x + j * cell_size + cell_size*3/4, y + text_offset + i * cell_size + cell_size/4),
+                        font_size=15
                     )
 
 
@@ -373,7 +383,11 @@ class MPSPEnv(gym.Env):
         """Renders the text"""
         assert self.screen is not None, "Screen must be initialised"
 
-        font = pygame.font.Font(None, font_size.value)
+        if isinstance(font_size, text_type):
+            font_size = font_size.value
+        
+
+        font = pygame.font.Font(None, font_size)
         text_surface = font.render(text, True, (10, 10, 10))
         text_rect = text_surface.get_rect(center=pos)
         self.surface.blit(text_surface, text_rect)
