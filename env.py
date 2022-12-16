@@ -4,6 +4,7 @@ import numpy as np
 import types
 import pygame
 from enum import Enum
+from typing import List
 
 class text_type(Enum):
         CELL = 20
@@ -162,14 +163,14 @@ class MPSPEnv(gym.Env):
         print(self.transportation_matrix)
 
 
-    def render(self, mode='human'):
+    def render(self, mode='human', probs: List[float]=None, action=0):
 
         if mode == 'human':
-            self._render_human()
+            self._render_human(probs, action)
 
 
 
-    def _render_human(self):
+    def _render_human(self, probs=None, action=0):
 
         # Initialise screen
         H, W = 400, 600
@@ -197,7 +198,8 @@ class MPSPEnv(gym.Env):
         self._render_transportation_matrix(cell_size=CELL_SIZE, pos=(W/2+PADDING/2,PADDING*3))
 
         # Render the container explanation
-        self._render_container_explanation(cell_size=CELL_SIZE, pos=(W/2-frame_size[0]-PADDING/2, PADDING*5 + frame_size[1]))
+        self._render_container_explanation(cell_size=CELL_SIZE, pos=(W/2+PADDING/2,PADDING*5 + frame_size[1]))
+        self._render_action_probabilities(cell_size=CELL_SIZE, pos=(W/2-frame_size[0]-PADDING/2, PADDING*5 + frame_size[1]), probs=probs, action=action)
         
 
 
@@ -206,6 +208,44 @@ class MPSPEnv(gym.Env):
         self.screen.fill(0)
         self.screen.blit(self.surface, (0, 0))
         pygame.display.flip()
+
+
+    def _render_action_probabilities(self, cell_size, probs=None, action=0, pos=(0, 0)):
+        """Renders the action probabilities"""
+        assert self.screen is not None, "Screen must be initialised"
+        x, y = pos
+
+        if probs is None:
+            return
+
+        # Draw to rows of probabilities. One for adding and one for removing.
+        # Draw a box for each action. Remove are below the add boxes.
+        # The box with the action is green if add and red if remove, the rest are without color.
+        for i, prob in enumerate(probs):
+            if i < self.C:
+                color = (0, 255, 0) if action == i else (0, 0, 0)
+            else:
+                color = (255, 0, 0) if action == i else (0, 0, 0)
+            pygame.draw.rect(
+                self.surface,
+                color,
+                (
+                    x + i * cell_size if i < self.C else x + (i - self.C) * cell_size,
+                    y if i < self.C else y + cell_size,
+                    cell_size,
+                    cell_size
+                ),
+                0 if action == i else 1
+            )
+
+            self._render_text(
+                f'{prob*100:.0f}',
+                pos=(
+                    x + i * cell_size + cell_size/2 if i < self.C else x + (i - self.C) * cell_size + cell_size/2,
+                    y + cell_size/2 if i < self.C else y + cell_size + cell_size/2
+                ),
+                font_size=text_type.CELL
+            )
 
 
     def _render_container_explanation(self, cell_size, pos=(0, 0)):
@@ -226,7 +266,7 @@ class MPSPEnv(gym.Env):
                     y + text_offset,
                     cell_size,
                     cell_size
-                )
+                ),
             )
 
             

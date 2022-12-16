@@ -41,10 +41,12 @@ obs = env.reset(
 
 done = False
 while not done:
-    env.render()
+    
     # take a random action
     action_mask = env.action_masks()
     action_p = action_mask / np.sum(action_mask)
+    
     action = np.random.choice(np.arange(len(action_mask)), p=action_p)
+    env.render(probs=action_p, action=action)
     obs, reward, done, _ = env.step(action)
     
