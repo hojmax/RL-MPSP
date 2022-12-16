@@ -306,6 +306,19 @@ class MPSPEnv(gym.Env):
         for i in range(self.R):
             for j in range(self.C):
 
+                # Draw the grid lines
+                pygame.draw.rect(
+                    self.surface,
+                    (0, 0, 0),
+                    (
+                        x + j * cell_size,
+                        y + text_offset + i * cell_size,
+                        cell_size,
+                        cell_size
+                    ),
+                    1
+                )
+
                 # Draw the containers
                 container = self.bay_matrix[i, j]
                 if container > 0:
@@ -320,18 +333,6 @@ class MPSPEnv(gym.Env):
                         )
                     )
 
-                # Draw the grid lines
-                pygame.draw.rect(
-                    self.surface,
-                    (0, 0, 0),
-                    (
-                        x + j * cell_size,
-                        y + text_offset + i * cell_size,
-                        cell_size,
-                        cell_size
-                    ),
-                    1
-                )
 
                 # Draw a little B for all blocking containers
                 if blocking_containers[i, j] == 1:
