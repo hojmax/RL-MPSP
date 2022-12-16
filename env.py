@@ -88,6 +88,7 @@ class MPSPEnv(gym.Env):
         self.bay_matrix = np.zeros((self.R, self.C), dtype=np.int32)
         self.column_counts = np.zeros(self.C, dtype=np.int32)
         self.port = 0
+        self.reward = 0
         self.is_terminated = False
 
         return self._get_observation()
