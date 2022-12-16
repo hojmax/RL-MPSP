@@ -8,6 +8,7 @@ import torch
 import wandb
 import os
 import gym
+from tqdm import tqdm
 
 wandb.login()
 
@@ -71,13 +72,14 @@ else:
     )
 
 
-model.learn(
-    total_timesteps=config['TOTAL_TIMESTEPS'],
-    callback=WandbCallback(
-        model_save_path=f"models/{run.id}",
-        model_save_freq=config['TOTAL_TIMESTEPS'] // 4,
+    model.learn(
+        total_timesteps=config['TOTAL_TIMESTEPS'],
+        callback=WandbCallback(
+            model_save_path=f"models/{run.id}",
+            model_save_freq=config['TOTAL_TIMESTEPS'] // 4,
+        ),
+        progress_bar=True
     )
-)
 
 eval_data = get_benchmarking_data('rl-mpsp-benchmark/set_2')
 eval_data = [
@@ -101,7 +103,7 @@ eval_rewards = []
 paper_rewards = [-e['paper_result'] for e in eval_data]
 paper_seeds = [e['seed'] for e in eval_data]
 
-for e in eval_data:
+for e in tqdm(eval_data, desc='Evaluating'):
     total_reward = 0
     obs = env.reset(
         transportation_matrix=e['transportation_matrix']
@@ -112,6 +114,7 @@ for e in eval_data:
             obs,
             action_masks=env.action_masks()
         )
+        env.render()
         obs, reward, done, _ = env.step(action)
         total_reward += reward
 
@@ -125,3 +128,5 @@ eval = {
     'paper_seeds': paper_seeds
 }
 run.summary['evaluation_benchmark'] = eval
+
+run.finish()

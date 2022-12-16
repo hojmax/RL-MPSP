@@ -462,11 +462,18 @@ class MPSPEnv(gym.Env):
         self.bay_matrix[i, j] = container
         self.transportation_matrix[self.port, container] -= 1
 
+
+        # Check if container is blocking by checking if there is a container in the same column with a higher destination
+        for k in self.bay_matrix[i:, j]:
+            if k > container:
+                delta_reward -= 1
+                break
+
         # Sail along for every zero-row
         while np.sum(self.transportation_matrix[self.port]) == 0:
             self.port += 1
-            blocking_containers = self._offload_containers()
-            delta_reward -= blocking_containers
+            self._offload_containers()
+            # delta_reward -= blocking_containers
             if self.port + 1 == self.N:
                 break
 

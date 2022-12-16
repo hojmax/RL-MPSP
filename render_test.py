@@ -4,7 +4,7 @@ import numpy as np
 import pygame
 import gym
 import wandb
-wandb.init(monitor_gym=True)
+# wandb.init(monitor_gym=True)
 
 env = MPSPEnv(10, 10, 10)
 # env = gym.wrappers.Monitor(env, './video', video_callable=lambda episode_id: True, force=True)
