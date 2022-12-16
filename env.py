@@ -21,6 +21,7 @@ class MPSPEnv(gym.Env):
         self.capacity = self.R * self.C
         self.terminated_reward = 0
         self.screen = None
+        self.reward = 0
 
 
         # You can add or remove a container for every column
@@ -116,6 +117,8 @@ class MPSPEnv(gym.Env):
             "mask": self.action_masks()
         }
 
+        self.reward += reward
+
         return (
             self._get_observation(),
             reward,
@@ -185,7 +188,7 @@ class MPSPEnv(gym.Env):
         PADDING = 20
 
         # Render current port
-        self._render_text(f'Port: {self.port}', pos=(W/2, PADDING), font_size=text_type.HEADLINE)
+        self._render_text(f'Port: {self.port}, Reward: {self.reward}', pos=(W/2, PADDING), font_size=text_type.HEADLINE)
 
         # Render the bay matrix and transportation matrix
         CELL_SIZE = 20

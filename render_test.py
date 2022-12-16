@@ -34,17 +34,17 @@ obs = env.reset(
     transportation_matrix=sample['transportation_matrix']
 )
 
-while True:
-    env.render()
-
-
-
-# done = False
-# while not done:
+# while True:
 #     env.render()
-#     action, _ = model.predict(
-#         obs,
-#         action_masks=env.action_masks()
-#     )
-#     obs, reward, done, _ = env.step(action)
+
+
+
+done = False
+while not done:
+    env.render()
+    # take a random action
+    action_mask = env.action_masks()
+    action_p = action_mask / np.sum(action_mask)
+    action = np.random.choice(np.arange(len(action_mask)), p=action_p)
+    obs, reward, done, _ = env.step(action)
     
