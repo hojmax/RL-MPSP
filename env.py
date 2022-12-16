@@ -4,18 +4,23 @@ import numpy as np
 import types
 import pygame
 from enum import Enum
-from typing import List
+from typing import List, Optional
 import helpers
+import os
+# os.environ["IMAGEIO_FFMPEG_EXE"] = "/opt/homebrew/lib/python3.9/site-packages/imageio_ffmpeg"
 
 class text_type(Enum):
         CELL = 20
         HEADLINE = 36
         SUBHEADLINE = 28
 
+
+
+
 class MPSPEnv(gym.Env):
     """Environment for the Multi Port Shipping Problem"""
 
-    def __init__(self, rows, columns, n_ports):
+    def __init__(self, rows, columns, n_ports, render_mode: Optional[str] = None,):
         super(MPSPEnv, self).__init__()
         self.R = rows
         self.C = columns
@@ -23,7 +28,15 @@ class MPSPEnv(gym.Env):
         self.capacity = self.R * self.C
         self.terminated_reward = 0
         self.screen = None
+        self.colors = None
         self.reward = 0
+        self.render_mode = render_mode
+        self.metadata = {
+            "render.modes": [
+                "human",
+                "rgb_array",
+            ],
+        }
 
 
         # You can add or remove a container for every column
@@ -166,26 +179,26 @@ class MPSPEnv(gym.Env):
 
     def render(self, mode='human', probs: List[float]=None, action=0):
 
-        if mode == 'human':
-            self._render_human(probs, action)
+        return self._render_human(mode, probs, action)
+            
 
-
-
-    def _render_human(self, probs=None, action=0):
+    def _render_human(self, mode='human', probs=None, action=0):
 
         # Initialise screen
         H, W = 400, 600
-        if self.screen is None:
+        pygame.font.init()
+        if self.screen is None and mode == "human":
             # Make a dict of gradient colors
-            self.colors = {i: color for i, color in enumerate(helpers.get_color_gradient('#A83279', '#D38312', self.N))}
-
             pygame.init()
             pygame.display.init()
             self.screen = pygame.display.set_mode((W, H))
 
+        if self.colors is None:
+            self.colors = {i: color for i, color in enumerate(helpers.get_color_gradient('#A83279', '#D38312', self.N))}
+
         # Fill background
-        self.surface = pygame.Surface(self.screen.get_size())
-        self.surface = self.surface.convert()
+        self.surface = pygame.Surface((W, H))
+        # self.surface = self.surface.convert()
         self.surface.fill((255, 255, 255))
 
         PADDING = 20
@@ -204,17 +217,23 @@ class MPSPEnv(gym.Env):
         self._render_action_probabilities(cell_size=CELL_SIZE, pos=(W/2-frame_size[0]-PADDING/2, PADDING*5 + frame_size[1]), probs=probs, action=action)
         
 
+        if mode == "human":
+            # Blit everything to the screen
+            pygame.event.pump()
+            self.screen.fill(0)
+            self.screen.blit(self.surface, (0, 0))
+            pygame.display.flip()
+        elif mode == "rgb_array":
+            return np.transpose(pygame.surfarray.array3d(self.surface), (1, 0, 2))
+        else:
+            raise NotImplementedError
+        
 
-        # Blit everything to the screen
-        pygame.event.pump()
-        self.screen.fill(0)
-        self.screen.blit(self.surface, (0, 0))
-        pygame.display.flip()
+
 
 
     def _render_action_probabilities(self, cell_size, probs=None, action=0, pos=(0, 0)):
         """Renders the action probabilities"""
-        assert self.screen is not None, "Screen must be initialised"
         x, y = pos
 
         if probs is None:
@@ -267,7 +286,6 @@ class MPSPEnv(gym.Env):
 
     def _render_container_explanation(self, cell_size, pos=(0, 0)):
         """Renders the container explanation"""
-        assert self.screen is not None, "Screen must be initialised"
         x, y = pos
 
         for i, color in enumerate(self.colors.values()):
@@ -291,8 +309,6 @@ class MPSPEnv(gym.Env):
 
     def _render_bay(self, cell_size, pos=(0, 0)):
         """Renders the bay matrix"""
-        assert self.screen is not None, "Screen must be initialised"
-        
 
         x, y = pos
 
@@ -347,7 +363,6 @@ class MPSPEnv(gym.Env):
 
     def _render_transportation_matrix(self, cell_size, pos=(0, 0)):
         """Renders the transportation matrix"""
-        assert self.screen is not None, "Screen must be initialised"
 
         x, y = pos
 
@@ -398,13 +413,12 @@ class MPSPEnv(gym.Env):
 
     def _render_text(self, text, pos=(0, 0), font_size: text_type=text_type.SUBHEADLINE):
         """Renders the text"""
-        assert self.screen is not None, "Screen must be initialised"
 
         if isinstance(font_size, text_type):
             font_size = font_size.value
         
 
-        font = pygame.font.Font(None, font_size)
+        font = pygame.font.Font(pygame.font.get_default_font(), font_size)
         text_surface = font.render(text, True, (10, 10, 10))
         text_rect = text_surface.get_rect(center=pos)
         self.surface.blit(text_surface, text_rect)
@@ -456,6 +470,13 @@ class MPSPEnv(gym.Env):
                 break
 
         return delta_reward
+
+
+    def _create_image_array(self, screen, size):
+        scaled_screen = pygame.transform.smoothscale(screen, size)
+        return np.transpose(
+            np.array(pygame.surfarray.pixels3d(scaled_screen)), axes=(1, 0, 2)
+        )
 
     def _get_blocking(self):
         """Returns a matrix of blocking containers (1 if blocking, 0 otherwise)"""

@@ -2,8 +2,14 @@ from env import MPSPEnv
 from benchmark import get_benchmarking_data
 import numpy as np
 import pygame
+import gym
+import wandb
+wandb.init(monitor_gym=True)
 
 env = MPSPEnv(10, 10, 10)
+# env = gym.wrappers.Monitor(env, './video', video_callable=lambda episode_id: True, force=True)
+env = gym.wrappers.RecordVideo(env, video_folder='video', step_trigger=lambda x: True)
+
 
 config = {
     # Environment
@@ -38,7 +44,6 @@ obs = env.reset(
 #     env.render()
 
 
-
 done = False
 while not done:
     
@@ -50,3 +55,4 @@ while not done:
     env.render(probs=action_p, action=action)
     obs, reward, done, _ = env.step(action)
     
+# wandb.log({"videos": [wandb.Video("./video/rl-video-step-0.mp4")]})
