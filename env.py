@@ -5,6 +5,7 @@ import types
 import pygame
 from enum import Enum
 from typing import List
+import helpers
 
 class text_type(Enum):
         CELL = 20
@@ -175,7 +176,8 @@ class MPSPEnv(gym.Env):
         # Initialise screen
         H, W = 400, 600
         if self.screen is None:
-            self.colors = {n: tuple(256/2+np.random.randint(256/2, size=3)) for n in range(self.N)}
+            # Make a dict of gradient colors
+            self.colors = {i: color for i, color in enumerate(helpers.get_color_gradient('#A83279', '#D38312', self.N))}
 
             pygame.init()
             pygame.display.init()
