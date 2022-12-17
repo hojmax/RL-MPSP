@@ -20,7 +20,7 @@ config = {
     # Model
     'PI_LAYER_SIZES': [64, 64, 64],
     'VF_LAYER_SIZES': [64, 64, 64],
-    # 'HIDDEN_SIZE': 64,
+    'HIDDEN_SIZE': 64,
     # Training
     'TOTAL_TIMESTEPS': 4800000,
     '_BATCH_SIZE': 128,
@@ -42,19 +42,19 @@ run = wandb.init(
     monitor_gym=True,
 )
 
-# env = make_vec_env(
-#     lambda: MPSPEnv(
-#         config['ROWS'],
-#         config['COLUMNS'],
-#         config['N_PORTS']
-#     ),
-#     n_envs=8  # M2 with 8 cores
-# )
-env = MPSPEnv(
-    config['ROWS'],
-    config['COLUMNS'],
-    config['N_PORTS']
+env = make_vec_env(
+    lambda: MPSPEnv(
+        config['ROWS'],
+        config['COLUMNS'],
+        config['N_PORTS']
+    ),
+    n_envs=8  # M2 with 8 cores
 )
+# env = MPSPEnv(
+#     config['ROWS'],
+#     config['COLUMNS'],
+#     config['N_PORTS']
+# )
 
 
 policy_kwargs = {
@@ -65,7 +65,7 @@ policy_kwargs = {
     }],
     'features_extractor_class': CustomCombinedExtractor,
     'features_extractor_kwargs': {
-        # 'hidden_size': config['HIDDEN_SIZE']
+        'hidden_size': config['HIDDEN_SIZE']
     }
 }
 
