@@ -9,12 +9,11 @@ import helpers
 import os
 # os.environ["IMAGEIO_FFMPEG_EXE"] = "/opt/homebrew/lib/python3.9/site-packages/imageio_ffmpeg"
 
+
 class text_type(Enum):
-        CELL = 20
-        HEADLINE = 36
-        SUBHEADLINE = 28
-
-
+    CELL = 20
+    HEADLINE = 36
+    SUBHEADLINE = 28
 
 
 class MPSPEnv(gym.Env):
@@ -37,7 +36,6 @@ class MPSPEnv(gym.Env):
                 "rgb_array",
             ],
         }
-
 
         # You can add or remove a container for every column
         self.action_space = spaces.Discrete(2 * self.C)
@@ -68,8 +66,8 @@ class MPSPEnv(gym.Env):
 
     def set_virtual_dimensions(self, virtual_R, virtual_C):
         """Limits the number of rows and columns that are accessible to the agent"""
-        assert virtual_R < self.R, "Virtual R must be smaller than R"
-        assert virtual_C < self.C, "Virtual C must be smaller than C"
+        assert virtual_R <= self.R, "Virtual R must be smaller than R"
+        assert virtual_C <= self.C, "Virtual C must be smaller than C"
         assert virtual_R > 0, "Virtual R must be strictly positive"
         assert virtual_C > 0, "Virtual C must be strictly positive"
         self.virtual_R = virtual_R
@@ -177,11 +175,9 @@ class MPSPEnv(gym.Env):
         print('Transportation matrix:')
         print(self.transportation_matrix)
 
-
-    def render(self, mode='human', probs: List[float]=None, action=0):
+    def render(self, mode='human', probs: List[float] = None, action=0):
 
         return self._render_human(mode, probs, action)
-            
 
     def _render_human(self, mode='human', probs=None, action=0):
 
@@ -195,7 +191,8 @@ class MPSPEnv(gym.Env):
             self.screen = pygame.display.set_mode((W, H))
 
         if self.colors is None:
-            self.colors = {i: color for i, color in enumerate(helpers.get_color_gradient('#A83279', '#D38312', self.N))}
+            self.colors = {i: color for i, color in enumerate(
+                helpers.get_color_gradient('#A83279', '#D38312', self.N))}
 
         # Fill background
         self.surface = pygame.Surface((W, H))
@@ -205,18 +202,22 @@ class MPSPEnv(gym.Env):
         PADDING = 20
 
         # Render current port
-        self._render_text(f'Port: {self.port}, Reward: {self.reward}', pos=(W/2, PADDING), font_size=text_type.HEADLINE)
+        self._render_text(f'Port: {self.port}, Reward: {self.reward}', pos=(
+            W/2, PADDING), font_size=text_type.HEADLINE)
 
         # Render the bay matrix and transportation matrix
         CELL_SIZE = 20
         frame_size = (self.C * CELL_SIZE, self.R * CELL_SIZE)
-        self._render_bay(cell_size=CELL_SIZE, pos=(W/2-frame_size[0]-PADDING/2,PADDING*3))
-        self._render_transportation_matrix(cell_size=CELL_SIZE, pos=(W/2+PADDING/2,PADDING*3))
+        self._render_bay(cell_size=CELL_SIZE, pos=(
+            W/2-frame_size[0]-PADDING/2, PADDING*3))
+        self._render_transportation_matrix(
+            cell_size=CELL_SIZE, pos=(W/2+PADDING/2, PADDING*3))
 
         # Render the container explanation
-        self._render_container_explanation(cell_size=CELL_SIZE, pos=(W/2+PADDING/2,PADDING*5 + frame_size[1]))
-        self._render_action_probabilities(cell_size=CELL_SIZE, pos=(W/2-frame_size[0]-PADDING/2, PADDING*5 + frame_size[1]), probs=probs, action=action)
-        
+        self._render_container_explanation(cell_size=CELL_SIZE, pos=(
+            W/2+PADDING/2, PADDING*5 + frame_size[1]))
+        self._render_action_probabilities(cell_size=CELL_SIZE, pos=(
+            W/2-frame_size[0]-PADDING/2, PADDING*5 + frame_size[1]), probs=probs, action=action)
 
         if mode == "human":
             # Blit everything to the screen
@@ -228,10 +229,6 @@ class MPSPEnv(gym.Env):
             return np.transpose(pygame.surfarray.array3d(self.surface), (1, 0, 2))
         else:
             raise NotImplementedError
-        
-
-
-
 
     def _render_action_probabilities(self, cell_size, probs=None, action=0, pos=(0, 0)):
         """Renders the action probabilities"""
@@ -254,7 +251,8 @@ class MPSPEnv(gym.Env):
                 self.surface,
                 color,
                 (
-                    x + i * cell_size if i < self.C else x + (i - self.C) * cell_size,
+                    x + i * cell_size if i < self.C else x +
+                    (i - self.C) * cell_size,
                     y if i < self.C else y + cell_size,
                     cell_size,
                     cell_size
@@ -267,7 +265,8 @@ class MPSPEnv(gym.Env):
                     self.surface,
                     (0, 0, 0),
                     (
-                        x + i * cell_size if i < self.C else x + (i - self.C) * cell_size,
+                        x + i * cell_size if i < self.C else x +
+                        (i - self.C) * cell_size,
                         y if i < self.C else y + cell_size,
                         cell_size,
                         cell_size
@@ -278,12 +277,12 @@ class MPSPEnv(gym.Env):
             self._render_text(
                 f'{prob}',
                 pos=(
-                    x + i * cell_size + cell_size/2 if i < self.C else x + (i - self.C) * cell_size + cell_size/2,
+                    x + i * cell_size + cell_size/2 if i < self.C else x +
+                    (i - self.C) * cell_size + cell_size/2,
                     y + cell_size/2 if i < self.C else y + cell_size + cell_size/2
                 ),
                 font_size=text_type.CELL
             )
-
 
     def _render_container_explanation(self, cell_size, pos=(0, 0)):
         """Renders the container explanation"""
@@ -305,15 +304,13 @@ class MPSPEnv(gym.Env):
                 ),
             )
 
-            
-
-
     def _render_bay(self, cell_size, pos=(0, 0)):
         """Renders the bay matrix"""
 
         x, y = pos
 
-        center_x, center_y = (x + self.C * cell_size / 2, y + self.R * cell_size / 2)
+        center_x, center_y = (x + self.C * cell_size / 2,
+                              y + self.R * cell_size / 2)
         self._render_text(f'Bay', pos=(center_x, y))
 
         text_offset = 15
@@ -350,26 +347,23 @@ class MPSPEnv(gym.Env):
                         )
                     )
 
-
                 # Draw a little B for all blocking containers
                 if blocking_containers[i, j] == 1:
                     self._render_text(
                         'B',
-                        pos=(x + j * cell_size + cell_size*3/4, y + text_offset + i * cell_size + cell_size/4),
+                        pos=(x + j * cell_size + cell_size*3/4, y +
+                             text_offset + i * cell_size + cell_size/4),
                         font_size=13
                     )
-
-
-
 
     def _render_transportation_matrix(self, cell_size, pos=(0, 0)):
         """Renders the transportation matrix"""
 
         x, y = pos
 
-        center_x, center_y = (x + self.N * cell_size / 2, y + self.N * cell_size / 2)
+        center_x, center_y = (x + self.N * cell_size / 2,
+                              y + self.N * cell_size / 2)
         self._render_text(f'Transportation', pos=(center_x, y))
-
 
         text_offset = 15
         # Draw the grid lines and the containers
@@ -405,25 +399,21 @@ class MPSPEnv(gym.Env):
                     self._render_text(
                         f'{count}',
                         pos=(
-                            x + j * cell_size + cell_size/2
-                            , y + text_offset + i * cell_size + cell_size/2
-                            ),
+                            x + j * cell_size + cell_size/2, y + text_offset + i * cell_size + cell_size/2
+                        ),
                         font_size=text_type.CELL
-                        )
+                    )
 
-
-    def _render_text(self, text, pos=(0, 0), font_size: text_type=text_type.SUBHEADLINE):
+    def _render_text(self, text, pos=(0, 0), font_size: text_type = text_type.SUBHEADLINE):
         """Renders the text"""
 
         if isinstance(font_size, text_type):
             font_size = font_size.value
-        
 
         font = pygame.font.Font(pygame.font.get_default_font(), font_size)
         text_surface = font.render(text, True, (10, 10, 10))
         text_rect = text_surface.get_rect(center=pos)
         self.surface.blit(text_surface, text_rect)
-
 
     def _get_last_destination_container(self):
 
@@ -462,10 +452,10 @@ class MPSPEnv(gym.Env):
         self.bay_matrix[i, j] = container
         self.transportation_matrix[self.port, container] -= 1
 
-
-        # Check if container is blocking by checking if there is a container in the same column with a higher destination
+        # Check if container is blocking (there exists a container in the same column with a higher destination)
+        # If so, penalize
         for k in self.bay_matrix[i:, j]:
-            if k > container:
+            if k < container:
                 delta_reward -= 1
                 break
 
@@ -473,12 +463,10 @@ class MPSPEnv(gym.Env):
         while np.sum(self.transportation_matrix[self.port]) == 0:
             self.port += 1
             self._offload_containers()
-            # delta_reward -= blocking_containers
             if self.port + 1 == self.N:
                 break
 
         return delta_reward
-
 
     def _create_image_array(self, screen, size):
         scaled_screen = pygame.transform.smoothscale(screen, size)

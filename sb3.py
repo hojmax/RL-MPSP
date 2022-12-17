@@ -2,13 +2,13 @@ from stable_baselines3.common.env_util import make_vec_env
 from wandb.integration.sb3 import WandbCallback
 from sb3_contrib.ppo_mask import MaskablePPO
 from benchmark import get_benchmarking_data
+from CustomEncoder import CustomCombinedExtractor
 from env import MPSPEnv
+from tqdm import tqdm
 import numpy as np
 import torch
 import wandb
-import os
 import gym
-from tqdm import tqdm
 
 wandb.login()
 
@@ -18,11 +18,17 @@ config = {
     'COLUMNS': 4,
     'N_PORTS': 10,
     # Model
-    'PI_LAYER_SIZES': [64, 128, 64],
-    'VF_LAYER_SIZES': [64, 128, 64],
+    'PI_LAYER_SIZES': [64, 64, 64],
+    'VF_LAYER_SIZES': [64, 64, 64],
+    # 'HIDDEN_SIZE': 64,
     # Training
     'TOTAL_TIMESTEPS': 4800000,
-    'BATCH_SIZE': 128
+    '_BATCH_SIZE': 128,
+    '_LEARNING_RATE': 1e-5,
+    '_N_EPOCHS': 3,
+    '_NORMALIZE_ADVANTAGE': False,
+    '_ENT_COEFF': 0.05,
+    '_GAMMA': 0.995,
 }
 
 run = wandb.init(
@@ -35,13 +41,18 @@ run = wandb.init(
     monitor_gym=True,
 )
 
-env = make_vec_env(
-    lambda: MPSPEnv(
-        config['ROWS'],
-        config['COLUMNS'],
-        config['N_PORTS']
-    ),
-    n_envs=8  # M2 with 8 cores
+# env = make_vec_env(
+#     lambda: MPSPEnv(
+#         config['ROWS'],
+#         config['COLUMNS'],
+#         config['N_PORTS']
+#     ),
+#     n_envs=8  # M2 with 8 cores
+# )
+env = MPSPEnv(
+    config['ROWS'],
+    config['COLUMNS'],
+    config['N_PORTS']
 )
 
 
@@ -50,10 +61,15 @@ policy_kwargs = {
     'net_arch': [{
         'pi': config['PI_LAYER_SIZES'],
         'vf': config['VF_LAYER_SIZES']
-    }]
+    }],
+    'features_extractor_class': CustomCombinedExtractor,
+    'features_extractor_kwargs': {
+        # 'hidden_size': config['HIDDEN_SIZE']
+    }
 }
 
 wandb_run_path = None
+train_again = False
 
 if wandb_run_path:
     model_file = wandb.restore('model.zip', run_path=wandb_run_path)
@@ -61,16 +77,28 @@ if wandb_run_path:
         model_file.name,
         env=env
     )
+    if train_again:
+        model.learn(
+            total_timesteps=config['TOTAL_TIMESTEPS'],
+            callback=WandbCallback(
+                model_save_path=f"models/{run.id}",
+                model_save_freq=config['TOTAL_TIMESTEPS'] // 4,
+            ),
+            progress_bar=True
+        )
 else:
     model = MaskablePPO(
         policy='MultiInputPolicy',
         env=env,
-        batch_size=config['BATCH_SIZE'],
+        batch_size=config['_BATCH_SIZE'],
         verbose=0,
         tensorboard_log=f"runs/{run.id}",
-        policy_kwargs=policy_kwargs
+        policy_kwargs=policy_kwargs,
+        learning_rate=config['_LEARNING_RATE'],
+        n_epochs=config['_N_EPOCHS'],
+        normalize_advantage=config['_NORMALIZE_ADVANTAGE'],
+        ent_coef=config['_ENT_COEFF']
     )
-
 
     model.learn(
         total_timesteps=config['TOTAL_TIMESTEPS'],
@@ -96,7 +124,8 @@ env = MPSPEnv(
     config['COLUMNS'],
     config['N_PORTS']
 )
-env = gym.wrappers.RecordVideo(env, video_folder='video', step_trigger=lambda x: True)
+env = gym.wrappers.RecordVideo(
+    env, video_folder='video', step_trigger=lambda x: True)
 
 eval_rewards = []
 # Negative because env returns negative reward for shifts
