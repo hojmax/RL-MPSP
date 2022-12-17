@@ -22,7 +22,13 @@ config = {
     'VF_LAYER_SIZES': [64, 128, 64],
     # Training
     'TOTAL_TIMESTEPS': 4800000,
-    'BATCH_SIZE': 128
+    '_BATCH_SIZE': 128,
+    '_ENT_COEF': 0.00,
+    '_LEARNING_RATE': 1e-5,
+    '_N_EPOCHS': 3,
+    '_NORMALIZE_ADVANTAGE': True,
+    '_N_STEPS': 256,
+    '_GAMMA': 0.995,
 }
 
 run = wandb.init(
@@ -65,10 +71,16 @@ else:
     model = MaskablePPO(
         policy='MultiInputPolicy',
         env=env,
-        batch_size=config['BATCH_SIZE'],
+        batch_size=config['_BATCH_SIZE'],
         verbose=0,
         tensorboard_log=f"runs/{run.id}",
-        policy_kwargs=policy_kwargs
+        policy_kwargs=policy_kwargs,
+        ent_coef=config['_ENT_COEF'],
+        learning_rate=config['_LEARNING_RATE'],
+        n_epochs=config['_N_EPOCHS'],
+        normalize_advantage=config['_NORMALIZE_ADVANTAGE'],
+        n_steps=config['_N_STEPS'],
+        gamma=config['_GAMMA'],
     )
 
 
@@ -90,13 +102,6 @@ eval_data = [
     )
 ]
 
-# Creating seperate env for evaluation
-env = MPSPEnv(
-    config['ROWS'],
-    config['COLUMNS'],
-    config['N_PORTS']
-)
-env = gym.wrappers.RecordVideo(env, video_folder='video', step_trigger=lambda x: True)
 
 eval_rewards = []
 # Negative because env returns negative reward for shifts
@@ -104,6 +109,14 @@ paper_rewards = [-e['paper_result'] for e in eval_data]
 paper_seeds = [e['seed'] for e in eval_data]
 
 for e in tqdm(eval_data, desc='Evaluating'):
+    # Creating seperate env for evaluation
+    env = MPSPEnv(
+        config['ROWS'],
+        config['COLUMNS'],
+        config['N_PORTS']
+    )
+    env = gym.wrappers.RecordVideo(env, video_folder=f'video/N{config["N_PORTS"]}_R{config["ROWS"]}_C{config["COLUMNS"]}_S{e["seed"]}')
+
     total_reward = 0
     obs = env.reset(
         transportation_matrix=e['transportation_matrix']

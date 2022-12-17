@@ -465,7 +465,7 @@ class MPSPEnv(gym.Env):
 
         # Check if container is blocking by checking if there is a container in the same column with a higher destination
         for k in self.bay_matrix[i:, j]:
-            if k > container:
+            if k < container:
                 delta_reward -= 1
                 break
 
