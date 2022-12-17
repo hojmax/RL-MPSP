@@ -195,7 +195,12 @@ class MPSPEnv(gym.Env):
             self.screen = pygame.display.set_mode((W, H))
 
         if self.colors is None:
-            self.colors = {i: color for i, color in enumerate(helpers.get_color_gradient('#A83279', '#D38312', self.N))}
+            # self.colors = {i: color for i, color in enumerate(helpers.get_color_gradient('#A83279', '#D38312', self.N))}
+            # Random distinct light colors without helper
+            self.colors = {
+                i: tuple(np.random.randint(128, 255, size=3))
+                for i in range(self.N)
+            }
 
         # Fill background
         self.surface = pygame.Surface((W, H))
