@@ -141,14 +141,17 @@ for e in tqdm(eval_data, desc='Evaluating'):
 
     done = False
     while not done:
+        action_mask = env.action_masks()
         action, _ = model.predict(
             obs,
-            action_masks=env.action_masks()
+            action_masks=action_mask,
+            deterministic=True  # Deterministic for evaluation
         )
-        obs_tensor, _  = model.policy.obs_to_tensor(obs)
+        obs_tensor, _ = model.policy.obs_to_tensor(obs)
         distribution = model.policy.get_distribution(obs_tensor)
         env.env.probs = distribution.distribution.probs
         env.env.prev_action = action
+        env.env.action_mask = action_mask
 
         env.render()
         obs, reward, done, _ = env.step(action)

@@ -246,7 +246,7 @@ class MPSPEnv(gym.Env):
     def _render_action_probabilities(self, cell_size, pos=(0, 0)):
         """Renders the action probabilities"""
         x, y = pos
-        
+
         if self.probs is None or self.prev_action is None:
             return
 
@@ -260,7 +260,10 @@ class MPSPEnv(gym.Env):
 
         for i, prob in enumerate(probs):
             prob = int(prob*100)
-            color = gradient[prob]
+            if not self.action_mask[i]:
+                color = 'grey'
+            else:
+                color = gradient[prob]
 
             # Draw the colored box
             pygame.draw.rect(
