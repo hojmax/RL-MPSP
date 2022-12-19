@@ -10,8 +10,9 @@ import torch
 import wandb
 import gym
 
-wandb.login()
-
+# --- Config ---
+wandb_run_path = 'rl-msps/PPO-SB3/1v9aglqt'
+train_again = False
 config = {
     # Environment
     'ROWS': 10,
@@ -22,7 +23,7 @@ config = {
     'VF_LAYER_SIZES': [64, 64],
     'EMBEDDING_DIM': 8,
     # Training
-    'TOTAL_TIMESTEPS': 600000,
+    'TOTAL_TIMESTEPS': 1200000,
     '_BATCH_SIZE': 128,
     '_ENT_COEF': 0.005,
     '_LEARNING_RATE': 1e-5,
@@ -31,21 +32,9 @@ config = {
     '_N_STEPS': 2048,
     '_GAMMA': 0.995,
 }
+# --------------
 
-
-wandb_run_path = 'rl-msps/PPO-SB3/1v9aglqt'
-train_again = False
-
-if wandb_run_path is None:
-    run = wandb.init(
-        project="PPO-SB3",
-        entity="rl-msps",
-        sync_tensorboard=True,
-        name=f"N{config['N_PORTS']}_R{config['ROWS']}_C{config['COLUMNS']}",
-        config=config,
-        notes=input("Weights and Biases run note: "),
-        monitor_gym=True,
-    )
+wandb.login()
 
 env = make_vec_env(
     lambda: MPSPEnv(
@@ -69,6 +58,18 @@ policy_kwargs = {
         'n_ports': config['N_PORTS']
     }
 }
+create_new_run = not wandb_run_path or train_again
+
+if create_new_run:
+    run = wandb.init(
+        project="PPO-SB3",
+        entity="rl-msps",
+        sync_tensorboard=True,
+        name=f"N{config['N_PORTS']}_R{config['ROWS']}_C{config['COLUMNS']}",
+        config=config,
+        notes=input("Weights and Biases run note: "),
+        monitor_gym=True,
+    )
 
 if wandb_run_path:
     model_file = wandb.restore('model.zip', run_path=wandb_run_path)
@@ -141,14 +142,17 @@ for e in tqdm(eval_data, desc='Evaluating'):
 
     done = False
     while not done:
+        action_mask = env.action_masks()
         action, _ = model.predict(
             obs,
-            action_masks=env.action_masks()
+            action_masks=action_mask,
+            deterministic=True  # Deterministic for evaluation
         )
-        obs_tensor, _  = model.policy.obs_to_tensor(obs)
+        obs_tensor, _ = model.policy.obs_to_tensor(obs)
         distribution = model.policy.get_distribution(obs_tensor)
         env.env.probs = distribution.distribution.probs
         env.env.prev_action = action
+        env.env.action_mask = action_mask
 
         env.render()
         obs, reward, done, _ = env.step(action)
@@ -156,13 +160,14 @@ for e in tqdm(eval_data, desc='Evaluating'):
 
     eval_rewards.append(total_reward)
 
-eval = {
-    'mean_reward': np.mean(eval_rewards),
-    'mean_paper_reward': np.mean(paper_rewards),
-    'rewards': eval_rewards,
-    'paper_rewards': paper_rewards,
-    'paper_seeds': paper_seeds
-}
-run.summary['evaluation_benchmark'] = eval
+if create_new_run:
+    eval = {
+        'mean_reward': np.mean(eval_rewards),
+        'mean_paper_reward': np.mean(paper_rewards),
+        'rewards': eval_rewards,
+        'paper_rewards': paper_rewards,
+        'paper_seeds': paper_seeds
+    }
+    run.summary['evaluation_benchmark'] = eval
 
-run.finish()
+    run.finish()
