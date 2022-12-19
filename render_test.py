@@ -6,7 +6,7 @@ import gym
 import wandb
 # wandb.init(monitor_gym=True)
 
-env = MPSPEnv(10, 10, 10)
+env = MPSPEnv(10, 4, 10)
 # env = gym.wrappers.Monitor(env, './video', video_callable=lambda episode_id: True, force=True)
 env = gym.wrappers.RecordVideo(env, video_folder='video', step_trigger=lambda x: True)
 
@@ -43,16 +43,20 @@ obs = env.reset(
 # while True:
 #     env.render()
 
-
 done = False
 while not done:
     
     # take a random action
     action_mask = env.action_masks()
+    # print(action_mask)
     action_p = action_mask / np.sum(action_mask)
-    
+    # split action mask up into add and remove and reshape to 2d
+    add_mask = action_mask[:(env.C*env.R)].reshape(env.R, env.C)
+    remove_mask = action_mask[(env.C*env.R):].reshape(env.R, env.C)
+    # print(f'remove_mask: {remove_mask}')
+    # print(f'bay matrix: {env.env.bay_matrix}')
     action = np.random.choice(np.arange(len(action_mask)), p=action_p)
-    env.render(probs=action_p, action=action)
+    env.render()
     obs, reward, done, _ = env.step(action)
     
 # wandb.log({"videos": [wandb.Video("./video/rl-video-step-0.mp4")]})

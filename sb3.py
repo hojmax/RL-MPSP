@@ -11,7 +11,7 @@ import wandb
 import gym
 
 # --- Config ---
-wandb_run_path = 'rl-msps/PPO-SB3/1v9aglqt'
+wandb_run_path = None
 train_again = False
 config = {
     # Environment
@@ -69,6 +69,7 @@ if create_new_run:
         config=config,
         notes=input("Weights and Biases run note: "),
         monitor_gym=True,
+        tags = ['larger_action_space']
     )
 
 if wandb_run_path:

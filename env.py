@@ -40,7 +40,7 @@ class MPSPEnv(gym.Env):
         }
 
         # You can add or remove a container for every column
-        self.action_space = spaces.Discrete(2 * self.C)
+        self.action_space = spaces.Discrete(2 * self.C * self.R)
         bay_matrix_def = spaces.Box(
             low=0,
             high=self.N,
@@ -110,25 +110,26 @@ class MPSPEnv(gym.Env):
         """
         assert not self.is_terminated, "Environment is terminated"
 
-        should_add = action < self.C
+        should_add = action < self.C * self.R
         reward = 0
 
         if should_add:
-            j = action
-            i = self.R - self.column_counts[j] - 1
+            j = action % self.C
+            i = self.column_counts[j]
 
             assert self.column_counts[j] < self.R, "Cannot add containers to full columns"
 
-            reward += self._add_container(i, j)
+            reward += self._add_container(self.R-i-1, j)
         else:
-            j = action - self.C
-            i = self.R - self.column_counts[j]
+            action -= self.C * self.R
+            j = action % self.C
+            i = self.column_counts[j] - 1
+            if action < self.C:
+                assert self.column_counts[
+                    action
+                ] > 0, "Cannot remove containers from empty columns"
 
-            assert self.column_counts[
-                action - self.C
-            ] > 0, "Cannot remove containers from empty columns"
-
-            reward += self._remove_container(i, j)
+            reward += self._remove_container(self.R-i-1, j)
 
         # Port is zero indexed
         self.is_terminated = self.port+1 == self.N
@@ -152,25 +153,22 @@ class MPSPEnv(gym.Env):
     def action_masks(self):
         """Returns a mask for the actions (True if the action is valid, False otherwise)."""
 
-        # Masking out full columns
-        add_mask = (
-            self.column_counts < self.R
-            if self.virtual_R is None
-            else self.column_counts < self.virtual_R
-        )
+        # Only allow actions where there already is no container
+        # and there is a container below it
+        add_mask = np.zeros((self.R, self.C), dtype=np.int8)
+        for j in range(self.C):
+            if self.column_counts[j] < self.R:
+                # print(self.column_counts[j], self.R, j)
+                add_mask[self.column_counts[j], j] = 1
 
-        if self.virtual_C is not None:
-            # Masking out columns that are not accessible
-            add_mask = np.logical_and(
-                add_mask,
-                # Can only use first virtual_C columns
-                np.arange(self.C) < self.virtual_C
-            )
+        # Only allow actions where there already is a container
+        # and there is no container above it
+        remove_mask = np.zeros((self.R, self.C), dtype=np.int8)
+        for j in range(self.C):
+            if self.column_counts[j] > 0:
+                remove_mask[self.column_counts[j] - 1, j] = 1
 
-        # Masking out empty columns
-        remove_mask = self.column_counts > 0
-
-        mask = np.concatenate((add_mask, remove_mask), dtype=np.int8)
+        mask = np.concatenate((add_mask.flatten(), remove_mask.flatten()), dtype=np.int8)
 
         return mask
 
