@@ -51,9 +51,16 @@ class MPSPEnv(gym.Env):
             shape=(self.N, self.N),
             dtype=np.int32
         )
+        port_def = spaces.Box(
+            low=0,
+            high=self.N,
+            shape=(1,),
+            dtype=np.int32
+        )
         self.observation_space = spaces.Dict({
             'bay_matrix': bay_matrix_def,
-            'transportation_matrix': transportation_matrix_def
+            'transportation_matrix': transportation_matrix_def,
+            'port': port_def
         })
         self.transportation_matrix = None
         self.bay_matrix = None
@@ -458,7 +465,7 @@ class MPSPEnv(gym.Env):
 
         # Check if container is blocking (there exists a container in the same column with a higher destination)
         # If so, penalize
-        for k in self.bay_matrix[i:, j]:
+        for k in self.bay_matrix[i+1:, j]:
             if k < container:
                 delta_reward -= 1
                 break
@@ -529,7 +536,8 @@ class MPSPEnv(gym.Env):
     def _get_observation(self):
         return {
             'bay_matrix': self.bay_matrix,
-            'transportation_matrix': self.transportation_matrix
+            'transportation_matrix': self.transportation_matrix,
+            'port': self.port
         }
 
     def _get_short_distance_transportation_matrix(self, N):

@@ -5,8 +5,25 @@ import numpy as np
 import torch
 
 
+class Extract_upper_triangular_batched(nn.Module):
+    def __init__(self, n_ports):
+        super().__init__()
+        self.upper_triangular_indeces = torch.triu_indices(
+            n_ports,
+            n_ports,
+            offset=1  # We don't want to include the diagonal
+        )
+
+    def forward(self, x):
+        return x[
+            :,  # Batch dimension
+            self.upper_triangular_indeces[0],
+            self.upper_triangular_indeces[1]
+        ]
+
+
 class CustomCombinedExtractor(BaseFeaturesExtractor):
-    def __init__(self, observation_space, hidden_size):
+    def __init__(self, observation_space, n_ports, vocab_size, embedding_dim):
         # We do not know features-dim here before going over all the items,
         # so put something dummy for now. PyTorch requires calling
         # nn.Module.__init__ before adding modules
@@ -14,44 +31,34 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
             observation_space,
             features_dim=1
         )
-
         extractors = {}
 
         total_concat_size = 0
         # We need to know size of the output of this extractor,
         # so go over all the spaces and compute output feature sizes
         for key, subspace in observation_space.spaces.items():
-            extractors[key] = nn.Sequential(
-                nn.Conv2d(
-                    in_channels=1,
-                    out_channels=6,
-                    kernel_size=3,
-                    padding=2
-                ),
-                nn.MaxPool2d(4),
-                nn.Conv2d(
-                    in_channels=6,
-                    out_channels=16,
-                    kernel_size=5,
-                    padding=4
-                ),
-                nn.MaxPool2d(2),
-                nn.Flatten()
-            )
+            subspace_size = np.prod(subspace.shape)
 
-            with torch.no_grad():
-                # Get the output size of the last layer, by passing a dummy tensor
-                obs = torch.tensor(
-                    subspace.sample()
-                ).float()
-                shape = obs.shape
-                # Must reshape to (Batch, Channels, Height, Width)
-                obs = obs.reshape(1, 1, shape[0], shape[1])
-                n_flatten = extractors[key](
-                    obs
-                ).shape[1]
+            if key == 'bay_matrix':
+                extractors[key] = nn.Sequential(
+                    nn.Flatten(),
+                    nn.Embedding(
+                        vocab_size,
+                        embedding_dim
+                    ),
+                    nn.Flatten(),
+                )
 
-            total_concat_size += n_flatten
+                total_concat_size += subspace_size * embedding_dim
+            elif key == 'transportation_matrix':
+                extractors[key] = Extract_upper_triangular_batched(n_ports)
+                upper_triangular_size = int(
+                    n_ports * (n_ports - 1) / 2
+                )  # Sum of 1 to n-1. Int for shape compatibility
+                total_concat_size += upper_triangular_size
+            elif key == 'port':
+                extractors[key] = nn.Flatten()
+                total_concat_size += 1
 
         self.extractors = nn.ModuleDict(extractors)
 
@@ -63,12 +70,12 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
 
         # self.extractors contain nn.Modules that do all the processing.
         for key, extractor in self.extractors.items():
-            shape = observations[key].shape
             # We are given a (Batch, Height, Width) PyTorch tensor
-            # Must reshape to (Batch, Channels, Height, Width) for PyTorch conv layers (channels = 1)
-            input = observations[key].reshape(shape[0], 1, shape[1], shape[2])
             encoded_tensor_list.append(
-                extractor(input)
+                extractor(
+                    # Make into long for nn.Embedding
+                    observations[key].long()
+                )
             )
         # Return a (B, self._features_dim) PyTorch tensor, where B is batch dimension.
         return torch.cat(encoded_tensor_list, dim=1)
