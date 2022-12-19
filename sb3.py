@@ -18,11 +18,11 @@ config = {
     'COLUMNS': 4,
     'N_PORTS': 10,
     # Model
-    'PI_LAYER_SIZES': [64, 64, 64],
-    'VF_LAYER_SIZES': [64, 64, 64],
+    'PI_LAYER_SIZES': [64, 64],
+    'VF_LAYER_SIZES': [64, 64],
     'EMBEDDING_DIM': 8,
     # Training
-    'TOTAL_TIMESTEPS': 4800000,
+    'TOTAL_TIMESTEPS': 600000,
     '_BATCH_SIZE': 128,
     '_ENT_COEF': 0.005,
     '_LEARNING_RATE': 1e-5,
@@ -32,15 +32,20 @@ config = {
     '_GAMMA': 0.995,
 }
 
-run = wandb.init(
-    project="PPO-SB3",
-    entity="rl-msps",
-    sync_tensorboard=True,
-    name=f"N{config['N_PORTS']}_R{config['ROWS']}_C{config['COLUMNS']}",
-    config=config,
-    notes=input("Weights and Biases run note: "),
-    monitor_gym=True,
-)
+
+wandb_run_path = 'rl-msps/PPO-SB3/1v9aglqt'
+train_again = False
+
+if wandb_run_path is None:
+    run = wandb.init(
+        project="PPO-SB3",
+        entity="rl-msps",
+        sync_tensorboard=True,
+        name=f"N{config['N_PORTS']}_R{config['ROWS']}_C{config['COLUMNS']}",
+        config=config,
+        notes=input("Weights and Biases run note: "),
+        monitor_gym=True,
+    )
 
 env = make_vec_env(
     lambda: MPSPEnv(
@@ -64,9 +69,6 @@ policy_kwargs = {
         'n_ports': config['N_PORTS']
     }
 }
-
-wandb_run_path = None
-train_again = False
 
 if wandb_run_path:
     model_file = wandb.restore('model.zip', run_path=wandb_run_path)
@@ -136,6 +138,7 @@ for e in tqdm(eval_data, desc='Evaluating'):
     obs = env.reset(
         transportation_matrix=e['transportation_matrix']
     )
+
     done = False
     while not done:
         action, _ = model.predict(

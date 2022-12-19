@@ -58,7 +58,7 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
                 total_concat_size += upper_triangular_size
             elif key == 'port':
                 extractors[key] = nn.Flatten()
-                total_concat_size += 1
+                total_concat_size += 1  # Port is a scalar
 
         self.extractors = nn.ModuleDict(extractors)
 
@@ -70,6 +70,14 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
 
         # self.extractors contain nn.Modules that do all the processing.
         for key, extractor in self.extractors.items():
+            # print('----', key)
+            # print(observations[key].shape)
+            # print(observations[key])
+            # results = extractor(
+            #     observations[key].long()
+            # )
+            # print(results.shape)
+            # print(results)
             # We are given a (Batch, Height, Width) PyTorch tensor
             encoded_tensor_list.append(
                 extractor(

@@ -87,7 +87,7 @@ class MPSPEnv(gym.Env):
     def reset(self, transportation_matrix=None, seed=None):
         """Reset the state of the environment to an initial state"""
         self.seed(seed)
-        self.transportation_matrix = self._get_short_distance_transportation_matrix(
+        self.transportation_matrix = self._get_mixed_distance_transportation_matrix(
             self.N
         ) if transportation_matrix is None else transportation_matrix
         self.bay_matrix = np.zeros((self.R, self.C), dtype=np.int32)
@@ -537,16 +537,51 @@ class MPSPEnv(gym.Env):
         return {
             'bay_matrix': self.bay_matrix,
             'transportation_matrix': self.transportation_matrix,
-            'port': self.port
+            'port': np.array([self.port])
         }
+
+    def _get_mixed_distance_transportation_matrix(self, N):
+        """Generates a feasible transportation matrix (mixed distance)"""
+        ordering = []
+
+        for i in range(N-1):
+            # Shuffle the ordering
+            ordering.append(
+                np.random.permutation(np.arange(i+1, N))
+            )
+
+        return self._get_transportation_matrix(N, ordering)
 
     def _get_short_distance_transportation_matrix(self, N):
         """Generates a feasible transportation matrix (short distance)"""
+        ordering = []
+
+        for i in range(N-1):
+            ordering.append(np.arange(i+1, N))
+
+        return self._get_transportation_matrix(N, ordering)
+
+    def _get_long_distance_transportation_matrix(self, N):
+        """Generates a feasible transportation matrix (long distance)"""
+        ordering = []
+
+        for i in range(N-1):
+            ordering.append(np.arange(N-1, i, -1))
+
+        return self._get_transportation_matrix(N, ordering)
+
+    def _get_transportation_matrix(self, N, ordering):
+        """Generates a feasible transportation matrix (short distance)
+
+        Args:
+            N (int): Number of ports
+            ordering (list): List of lists of what ports to add destination containers to first
+        """
         output = np.zeros((N, N), dtype=np.int32)
         bay_capacity = self.capacity if self.virtual_Capacity is None else self.virtual_Capacity
 
         for i in range(N-1):
-            for j in range(i+1, N):
+            for j in ordering[i]:
                 output[i, j] = np.random.randint(0, bay_capacity+1)
                 bay_capacity -= output[i, j]
 
@@ -557,6 +592,6 @@ class MPSPEnv(gym.Env):
         # Make sure the first row of the transportation matrix has containers
         # Otherwise you could have skipped the first port
         if np.sum(output[0]) == 0:
-            return self._get_short_distance_transportation_matrix(N)
+            return self._get_transportation_matrix(N, ordering)
         else:
             return output
