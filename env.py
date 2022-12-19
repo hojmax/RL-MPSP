@@ -11,7 +11,7 @@ import os
 
 
 class text_type(Enum):
-    CELL = 20
+    CELL = 15
     HEADLINE = 36
     SUBHEADLINE = 28
 
@@ -28,6 +28,8 @@ class MPSPEnv(gym.Env):
         self.terminated_reward = 0
         self.screen = None
         self.colors = None
+        self.probs = None
+        self.prev_action = None
         self.reward = 0
         self.render_mode = render_mode
         self.metadata = {
@@ -182,11 +184,11 @@ class MPSPEnv(gym.Env):
         print('Transportation matrix:')
         print(self.transportation_matrix)
 
-    def render(self, mode='human', probs: List[float] = None, action=0):
+    def render(self, mode='human'):
 
-        return self._render_human(mode, probs, action)
+        return self._render_human(mode)
 
-    def _render_human(self, mode='human', probs=None, action=0):
+    def _render_human(self, mode='human'):
 
         # Initialise screen
         H, W = 400, 600
@@ -228,7 +230,7 @@ class MPSPEnv(gym.Env):
         self._render_container_explanation(cell_size=CELL_SIZE, pos=(
             W/2+PADDING/2, PADDING*5 + frame_size[1]))
         self._render_action_probabilities(cell_size=CELL_SIZE, pos=(
-            W/2-frame_size[0]-PADDING/2, PADDING*5 + frame_size[1]), probs=probs, action=action)
+            W/2-frame_size[0]-PADDING/2, PADDING*5 + frame_size[1]))
 
         if mode == "human":
             # Blit everything to the screen
@@ -241,11 +243,11 @@ class MPSPEnv(gym.Env):
         else:
             raise NotImplementedError
 
-    def _render_action_probabilities(self, cell_size, probs=None, action=0, pos=(0, 0)):
+    def _render_action_probabilities(self, cell_size, pos=(0, 0)):
         """Renders the action probabilities"""
         x, y = pos
-
-        if probs is None:
+        
+        if self.probs is None or self.prev_action is None:
             return
 
         # Draw to rows of probabilities. One for adding and one for removing.
@@ -253,6 +255,9 @@ class MPSPEnv(gym.Env):
         # Color the box darker green depending on the probability
         # If it is the action, make the border thicker
         gradient = helpers.get_color_gradient('#dd3e54', '#6be585', 100)
+
+        probs = self.probs.detach().cpu().numpy().squeeze()
+
         for i, prob in enumerate(probs):
             prob = int(prob*100)
             color = gradient[prob]
@@ -271,7 +276,7 @@ class MPSPEnv(gym.Env):
             )
 
             # Draw the border if it is the action
-            if i == action:
+            if i == self.prev_action:
                 pygame.draw.rect(
                     self.surface,
                     (0, 0, 0),

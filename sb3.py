@@ -145,6 +145,11 @@ for e in tqdm(eval_data, desc='Evaluating'):
             obs,
             action_masks=env.action_masks()
         )
+        obs_tensor, _  = model.policy.obs_to_tensor(obs)
+        distribution = model.policy.get_distribution(obs_tensor)
+        env.env.probs = distribution.distribution.probs
+        env.env.prev_action = action
+
         env.render()
         obs, reward, done, _ = env.step(action)
         total_reward += reward
