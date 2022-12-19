@@ -220,17 +220,24 @@ class MPSPEnv(gym.Env):
 
         # Render the bay matrix and transportation matrix
         CELL_SIZE = 20
-        frame_size = (self.C * CELL_SIZE, self.R * CELL_SIZE)
+        bay_frame_size = (self.C * CELL_SIZE, self.R * CELL_SIZE)
+        transport_frame_size = (self.N * CELL_SIZE, self.N * CELL_SIZE)
+
+        width_sum = bay_frame_size[0] + transport_frame_size[0] + PADDING
+        bay_x = W/2-width_sum/2
+        transport_x = bay_x + bay_frame_size[0] + PADDING
+
+
         self._render_bay(cell_size=CELL_SIZE, pos=(
-            W/2-frame_size[0]-PADDING/2, PADDING*3))
+            bay_x, PADDING*3))
         self._render_transportation_matrix(
-            cell_size=CELL_SIZE, pos=(W/2+PADDING/2, PADDING*3))
+            cell_size=CELL_SIZE, pos=(transport_x, PADDING*3))
 
         # Render the container explanation
         self._render_container_explanation(cell_size=CELL_SIZE, pos=(
-            W/2+PADDING/2, PADDING*5 + frame_size[1]))
+            transport_x, PADDING*5 + transport_frame_size[1]))
         self._render_action_probabilities(cell_size=CELL_SIZE, pos=(
-            W/2-frame_size[0]-PADDING/2, PADDING*5 + frame_size[1]))
+            bay_x, PADDING*5 + bay_frame_size[1]))
 
         if mode == "human":
             # Blit everything to the screen
