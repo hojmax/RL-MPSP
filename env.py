@@ -11,7 +11,7 @@ import os
 
 
 class text_type(Enum):
-    CELL = 15
+    CELL = 8
     HEADLINE = 36
     SUBHEADLINE = 28
 
@@ -259,11 +259,11 @@ class MPSPEnv(gym.Env):
         probs = self.probs.detach().cpu().numpy().squeeze()
 
         for i, prob in enumerate(probs):
-            prob = int(prob*100)
+            prob = prob*100
             if not self.action_mask[i]:
-                color = 'grey'
+                color = 'white'
             else:
-                color = gradient[prob]
+                color = gradient[int(prob)]
 
             # Draw the colored box
             pygame.draw.rect(
@@ -294,7 +294,7 @@ class MPSPEnv(gym.Env):
                 )
 
             self._render_text(
-                f'{prob}',
+                f'{np.round(prob,1)}',
                 pos=(
                     x + i * cell_size + cell_size/2 if i < self.C else x +
                     (i - self.C) * cell_size + cell_size/2,
