@@ -220,12 +220,17 @@ class MPSPEnv(gym.Env):
         CELL_SIZE = 20
         bay_frame_size = (self.C * CELL_SIZE, self.R * CELL_SIZE)
         transport_frame_size = (self.N * CELL_SIZE, self.N * CELL_SIZE)
+        probabilities_frame_size = bay_frame_size
 
-        width_sum = bay_frame_size[0] + transport_frame_size[0] + PADDING
-        bay_x = W/2-width_sum/2
+        width_sum = bay_frame_size[0] + transport_frame_size[0] + PADDING + probabilities_frame_size[0]*2
+        probability_x = W/2-width_sum/2
+        bay_x = probability_x + probabilities_frame_size[0]*2 + PADDING*2
         transport_x = bay_x + bay_frame_size[0] + PADDING
 
-
+        self._render_action_probabilities(cell_size=CELL_SIZE, pos=(
+            probability_x, PADDING*3), add=True)
+        self._render_action_probabilities(cell_size=CELL_SIZE, pos=(
+            probability_x+PADDING+probabilities_frame_size[0], PADDING*3), add=False)
         self._render_bay(cell_size=CELL_SIZE, pos=(
             bay_x, PADDING*3))
         self._render_transportation_matrix(
@@ -234,8 +239,6 @@ class MPSPEnv(gym.Env):
         # Render the container explanation
         self._render_container_explanation(cell_size=CELL_SIZE, pos=(
             transport_x, PADDING*5 + transport_frame_size[1]))
-        self._render_action_probabilities(cell_size=CELL_SIZE, pos=(
-            bay_x, PADDING*5 + bay_frame_size[1]))
 
         if mode == "human":
             # Blit everything to the screen
@@ -248,7 +251,7 @@ class MPSPEnv(gym.Env):
         else:
             raise NotImplementedError
 
-    def _render_action_probabilities(self, cell_size, pos=(0, 0)):
+    def _render_action_probabilities(self, cell_size, pos=(0, 0), add=True):
         """Renders the action probabilities"""
         x, y = pos
 
@@ -263,50 +266,87 @@ class MPSPEnv(gym.Env):
 
         probs = self.probs.detach().cpu().numpy().squeeze()
 
-        for i, prob in enumerate(probs):
-            prob = prob*100
-            if not self.action_mask[i]:
-                color = 'white'
-            else:
-                color = gradient[int(prob)]
+        # Get the probabilities for the add or remove actions
+        if add:
+            probs = probs[:(self.R*self.C)]
+        else:
+            probs = probs[(self.R*self.C):]
 
-            # Draw the colored box
-            pygame.draw.rect(
-                self.surface,
-                color,
-                (
-                    x + i * cell_size if i < self.C else x +
-                    (i - self.C) * cell_size,
-                    y if i < self.C else y + cell_size,
-                    cell_size,
-                    cell_size
-                ),
-            )
+        # Reshape to a matrix
+        probs = probs.reshape((self.R, self.C))
 
-            # Draw the border if it is the action
-            if i == self.prev_action:
+        # Flip the matrix so that the first row is at the bottom
+        probs = np.flip(probs, axis=0)
+        
+        x, y = pos
+
+        center_x, center_y = (x + self.C * cell_size / 2,
+                              y + self.R * cell_size / 2)
+        self._render_text(f'{"Add" if add else "Rem"}', pos=(center_x, y))
+
+        text_offset = 15
+
+        # Get the action mask
+        action_mask = self.action_masks()
+
+        # Extract the mask for the add or remove actions
+        if add:
+            action_mask = action_mask[:(self.R*self.C)]
+        else:
+            action_mask = action_mask[(self.R*self.C):]
+
+        for i in range(self.R):
+            for j in range(self.C):
+
+                prob = probs[i, j]*100
+                if not action_mask[(self.R-i-1)*self.C + j]:
+                    color = 'white'
+                else:
+                    color = gradient[int(prob)]
+
+                # Draw the grid lines
                 pygame.draw.rect(
                     self.surface,
                     (0, 0, 0),
                     (
-                        x + i * cell_size if i < self.C else x +
-                        (i - self.C) * cell_size,
-                        y if i < self.C else y + cell_size,
+                        x + j * cell_size,
+                        y + text_offset + i * cell_size,
                         cell_size,
                         cell_size
                     ),
-                    2
+                    1
                 )
 
-            self._render_text(
-                f'{np.round(prob,1)}',
-                pos=(
-                    x + i * cell_size + cell_size/2 if i < self.C else x +
-                    (i - self.C) * cell_size + cell_size/2,
-                    y + cell_size/2 if i < self.C else y + cell_size + cell_size/2
-                ),
-                font_size=text_type.CELL
-            )
+                # Draw the colored box
+                pygame.draw.rect(
+                    self.surface,
+                    color,
+                    (
+                        x + j * cell_size,
+                        y + text_offset + i * cell_size,
+                        cell_size,
+                        cell_size
+                    ),
+                )
+
+                # Draw the border if it is the action
+                action_index = (self.R-i-1)*self.C + j if add else (self.R-i-1)*self.C + j + self.R*self.C
+                if action_index == self.prev_action:
+                    pygame.draw.rect(
+                        self.surface,
+                        (0, 0, 0),
+                        (
+                            x + j * cell_size,
+                            y + text_offset + i * cell_size,
+                            cell_size,
+                            cell_size
+                        ),
+                        2
+                    )
+
+                # Draw the probability text
+                self._render_text(f'{int(prob)}', pos=(
+                    x + j * cell_size + cell_size/2, y + text_offset + i * cell_size + cell_size/2), font_size=text_type.CELL)
 
     def _render_container_explanation(self, cell_size, pos=(0, 0)):
         """Renders the container explanation"""

@@ -4,6 +4,7 @@ import numpy as np
 import pygame
 import gym
 import wandb
+import torch
 # wandb.init(monitor_gym=True)
 
 env = MPSPEnv(10, 4, 10)
@@ -56,6 +57,9 @@ while not done:
     # print(f'remove_mask: {remove_mask}')
     # print(f'bay matrix: {env.env.bay_matrix}')
     action = np.random.choice(np.arange(len(action_mask)), p=action_p)
+
+    env.env.probs = torch.from_numpy(action_p)
+    env.env.prev_action = action
     env.render()
     obs, reward, done, _ = env.step(action)
     
