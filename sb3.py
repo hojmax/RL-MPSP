@@ -11,7 +11,7 @@ import wandb
 import gym
 
 # --- Config ---
-wandb_run_path = 'rl-msps/PPO-SB3/1v9aglqt'
+wandb_run_path = None
 train_again = False
 config = {
     # Environment
@@ -23,9 +23,9 @@ config = {
     'VF_LAYER_SIZES': [64, 64],
     'EMBEDDING_DIM': 8,
     # Training
-    'TOTAL_TIMESTEPS': 1200000,
+    'TOTAL_TIMESTEPS': 2400000,
     '_BATCH_SIZE': 128,
-    '_ENT_COEF': 0.005,
+    '_ENT_COEF': 0.02,
     '_LEARNING_RATE': 1e-5,
     '_N_EPOCHS': 3,
     '_NORMALIZE_ADVANTAGE': True,
@@ -46,7 +46,7 @@ env = make_vec_env(
 )
 
 policy_kwargs = {
-    'activation_fn': torch.nn.ReLU,
+    'activation_fn': torch.nn.Tanh,
     'net_arch': [{
         'pi': config['PI_LAYER_SIZES'],
         'vf': config['VF_LAYER_SIZES']
@@ -56,7 +56,7 @@ policy_kwargs = {
         'vocab_size': config['N_PORTS'],
         'embedding_dim': config['EMBEDDING_DIM'],
         'n_ports': config['N_PORTS']
-    }
+    },
 }
 create_new_run = not wandb_run_path or train_again
 
@@ -69,6 +69,7 @@ if create_new_run:
         config=config,
         notes=input("Weights and Biases run note: "),
         monitor_gym=True,
+        tags=['tanh-nonlinearity']
     )
 
 if wandb_run_path:
@@ -84,7 +85,7 @@ if wandb_run_path:
                 model_save_path=f"models/{run.id}",
                 model_save_freq=config['TOTAL_TIMESTEPS'] // 4,
             ),
-            progress_bar=True
+            progress_bar=True,
         )
 else:
     model = MaskablePPO(

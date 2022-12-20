@@ -1,13 +1,10 @@
 import gym
 from gym import spaces
 import numpy as np
-import types
 import pygame
 from enum import Enum
-from typing import List, Optional
+from typing import Optional
 import helpers
-import os
-# os.environ["IMAGEIO_FFMPEG_EXE"] = "/opt/homebrew/lib/python3.9/site-packages/imageio_ffmpeg"
 
 
 class text_type(Enum):
@@ -89,9 +86,10 @@ class MPSPEnv(gym.Env):
     def reset(self, transportation_matrix=None, seed=None):
         """Reset the state of the environment to an initial state"""
         self.seed(seed)
-        self.transportation_matrix = self._get_mixed_distance_transportation_matrix(
-            self.N
-        ) if transportation_matrix is None else transportation_matrix
+        self.transportation_matrix = (
+            self._get_mixed_distance_transportation_matrix(self.N)
+            if transportation_matrix is None else transportation_matrix
+        )
         self.bay_matrix = np.zeros((self.R, self.C), dtype=np.int32)
         self.column_counts = np.zeros(self.C, dtype=np.int32)
         self.port = 0
@@ -226,7 +224,6 @@ class MPSPEnv(gym.Env):
         width_sum = bay_frame_size[0] + transport_frame_size[0] + PADDING
         bay_x = W/2-width_sum/2
         transport_x = bay_x + bay_frame_size[0] + PADDING
-
 
         self._render_bay(cell_size=CELL_SIZE, pos=(
             bay_x, PADDING*3))

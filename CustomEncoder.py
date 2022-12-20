@@ -19,7 +19,7 @@ class Extract_upper_triangular_batched(nn.Module):
             :,  # Batch dimension
             self.upper_triangular_indeces[0],
             self.upper_triangular_indeces[1]
-        ]
+        ].float()
 
 
 class CustomCombinedExtractor(BaseFeaturesExtractor):
@@ -47,37 +47,45 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
                         embedding_dim
                     ),
                     nn.Flatten(),
+                    nn.Tanh(),
+                    nn.Linear(subspace_size * embedding_dim, 64),
+                    nn.Tanh(),
+                    nn.Linear(64, 32),
                 )
-
-                total_concat_size += subspace_size * embedding_dim
+                total_concat_size += 32
             elif key == 'transportation_matrix':
-                extractors[key] = Extract_upper_triangular_batched(n_ports)
                 upper_triangular_size = int(
                     n_ports * (n_ports - 1) / 2
                 )  # Sum of 1 to n-1. Int for shape compatibility
-                total_concat_size += upper_triangular_size
+                extractors[key] = nn.Sequential(
+                    Extract_upper_triangular_batched(n_ports),
+                    nn.Linear(upper_triangular_size, 128),
+                    nn.Tanh(),
+                    nn.Linear(128, 64),
+                    nn.Tanh(),
+                    nn.Linear(64, 32),
+                )
+                total_concat_size += 32
             elif key == 'port':
-                extractors[key] = nn.Flatten()
+                extractors[key] = nn.Identity()  # No need to do anything
                 total_concat_size += 1  # Port is a scalar
 
         self.extractors = nn.ModuleDict(extractors)
 
+        self.final_layer = nn.Sequential(
+            nn.Linear(total_concat_size, 128),
+            nn.Tanh(),
+            nn.Linear(128, 64),
+        )
+
         # Update the features dim manually
-        self._features_dim = total_concat_size
+        self._features_dim = 64
 
     def forward(self, observations):
         encoded_tensor_list = []
 
         # self.extractors contain nn.Modules that do all the processing.
         for key, extractor in self.extractors.items():
-            # print('----', key)
-            # print(observations[key].shape)
-            # print(observations[key])
-            # results = extractor(
-            #     observations[key].long()
-            # )
-            # print(results.shape)
-            # print(results)
             # We are given a (Batch, Height, Width) PyTorch tensor
             encoded_tensor_list.append(
                 extractor(
@@ -85,5 +93,8 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
                     observations[key].long()
                 )
             )
+
         # Return a (B, self._features_dim) PyTorch tensor, where B is batch dimension.
-        return torch.cat(encoded_tensor_list, dim=1)
+        output = torch.cat(encoded_tensor_list, dim=1)
+        output = self.final_layer(output)
+        return output
