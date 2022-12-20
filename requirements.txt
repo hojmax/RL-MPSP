@@ -1,3 +1,4 @@
 wandb==0.13.5
 stable-baselines3==1.6.2
 sb3-contrib==1.6.2
+tensorflow==1.13.2
