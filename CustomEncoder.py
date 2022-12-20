@@ -50,9 +50,8 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
                     nn.Tanh(),
                     nn.Linear(subspace_size * embedding_dim, 64),
                     nn.Tanh(),
-                    nn.Linear(64, 32),
                 )
-                total_concat_size += 32
+                total_concat_size += 64
             elif key == 'transportation_matrix':
                 upper_triangular_size = int(
                     n_ports * (n_ports - 1) / 2
@@ -61,11 +60,8 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
                     Extract_upper_triangular_batched(n_ports),
                     nn.Linear(upper_triangular_size, 128),
                     nn.Tanh(),
-                    nn.Linear(128, 64),
-                    nn.Tanh(),
-                    nn.Linear(64, 32),
                 )
-                total_concat_size += 32
+                total_concat_size += 128
             elif key == 'port':
                 extractors[key] = nn.Identity()  # No need to do anything
                 total_concat_size += 1  # Port is a scalar
@@ -75,11 +71,10 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
         self.final_layer = nn.Sequential(
             nn.Linear(total_concat_size, 128),
             nn.Tanh(),
-            nn.Linear(128, 64),
         )
 
         # Update the features dim manually
-        self._features_dim = 64
+        self._features_dim = 128
 
     def forward(self, observations):
         encoded_tensor_list = []

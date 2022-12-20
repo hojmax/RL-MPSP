@@ -1,6 +1,8 @@
 import gym
 from gym import spaces
 import numpy as np
+import os
+os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
 import pygame
 from enum import Enum
 from typing import Optional
@@ -36,8 +38,8 @@ class MPSPEnv(gym.Env):
             ],
         }
 
-        # You can add or remove a container for every column
-        self.action_space = spaces.Discrete(2 * self.C)
+        # Currently we can only add containers. So C and not 2 * C
+        self.action_space = spaces.Discrete(self.C)
         bay_matrix_def = spaces.Box(
             low=0,
             high=self.N,
@@ -166,11 +168,11 @@ class MPSPEnv(gym.Env):
             )
 
         # Masking out empty columns
-        remove_mask = self.column_counts > 0
+        # remove_mask = self.column_counts > 0
 
-        mask = np.concatenate((add_mask, remove_mask), dtype=np.int8)
+        # mask = np.concatenate((add_mask, remove_mask), dtype=np.int8)
 
-        return mask
+        return add_mask
 
     def close(self):
         pass

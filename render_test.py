@@ -1,6 +1,8 @@
 from env import MPSPEnv
 from benchmark import get_benchmarking_data
 import numpy as np
+import os
+os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
 import pygame
 import gym
 import wandb

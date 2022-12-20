@@ -25,11 +25,11 @@ config = {
     # Training
     'TOTAL_TIMESTEPS': 2400000,
     '_BATCH_SIZE': 128,
-    '_ENT_COEF': 0.02,
-    '_LEARNING_RATE': 1e-5,
+    '_ENT_COEF': 0.001,
+    '_LEARNING_RATE': 1e-4,
     '_N_EPOCHS': 3,
     '_NORMALIZE_ADVANTAGE': True,
-    '_N_STEPS': 256,
+    '_N_STEPS': 512,
     '_GAMMA': 0.99,
 }
 # --------------
