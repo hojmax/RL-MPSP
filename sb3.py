@@ -29,8 +29,8 @@ config = {
     '_LEARNING_RATE': 1e-5,
     '_N_EPOCHS': 3,
     '_NORMALIZE_ADVANTAGE': True,
-    '_N_STEPS': 2048,
-    '_GAMMA': 0.995,
+    '_N_STEPS': 256,
+    '_GAMMA': 0.99,
 }
 # --------------
 
