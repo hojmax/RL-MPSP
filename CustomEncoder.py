@@ -25,11 +25,13 @@ class TransportationEncoder(nn.Module):
         self.n_ports = n_ports
         self.linear1 = nn.Linear(
             n_ports,
-            hidden_size
+            hidden_size,
+            device=device
         )
         self.linear2 = nn.Linear(
             container_embedding_size + hidden_size,
-            hidden_size
+            hidden_size,
+            device=device
         )
         self.flatten = nn.Flatten()
         self.tanh = nn.Tanh()
@@ -107,12 +109,14 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
                     nn.Flatten(2),
                     nn.Linear(
                         subspace.shape[0] * container_embedding_size,
-                        internal_hidden
+                        internal_hidden,
+                        device=device
                     ),
                     nn.Tanh(),
                     nn.Linear(
                         internal_hidden,
-                        internal_hidden
+                        internal_hidden,
+                        device=device
                     ),
                     nn.Tanh(),
                     nn.Flatten()
@@ -150,7 +154,8 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
                     ToFloat(),
                     nn.Linear(
                         subspace.shape[0],
-                        internal_hidden
+                        internal_hidden,
+                        device=device
                     ),
                     nn.Tanh(),
                 )
@@ -159,9 +164,9 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
         self.extractors = nn.ModuleDict(extractors)
 
         self.final_layer = nn.Sequential(
-            nn.Linear(total_concat_size, output_hidden),
+            nn.Linear(total_concat_size, output_hidden, device=device),
             nn.Tanh(),
-            nn.Linear(output_hidden, output_hidden),
+            nn.Linear(output_hidden, output_hidden, device=device),
             nn.Tanh()
         )
 
@@ -180,7 +185,7 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
             encoded_tensor_list.append(
                 extractor(
                     observations[key].to(self.device)
-                )
+                ).to(self.device)
             )
 
         # Return a (B, self._features_dim) PyTorch tensor, where B is batch dimension.
