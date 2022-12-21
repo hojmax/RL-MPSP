@@ -71,7 +71,8 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
         observation_space,
         n_ports,
         container_embedding_size,
-        hidden_size
+        internal_hidden,
+        output_hidden
     ):
         # We do not know features-dim here before going over all the items,
         # so put something dummy for now. PyTorch requires calling
@@ -101,17 +102,17 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
                     nn.Flatten(2),
                     nn.Linear(
                         subspace.shape[0] * container_embedding_size,
-                        hidden_size
+                        internal_hidden
                     ),
                     nn.Tanh(),
                     nn.Linear(
-                        hidden_size,
-                        hidden_size
+                        internal_hidden,
+                        internal_hidden
                     ),
                     nn.Tanh(),
                     nn.Flatten()
                 )
-                total_concat_size += subspace.shape[1] * hidden_size
+                total_concat_size += subspace.shape[1] * internal_hidden
             elif key == 'container':
                 extractors[key] = nn.Sequential(
                     # Long is required for embedding
@@ -135,31 +136,31 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
                     self.Container_embedding,
                     container_embedding_size,
                     n_ports,
-                    hidden_size
+                    internal_hidden
                 )
-                total_concat_size += subspace.shape[0] * hidden_size
+                total_concat_size += subspace.shape[0] * internal_hidden
             elif key == 'will_block':
                 extractors[key] = nn.Sequential(
                     ToFloat(),
                     nn.Linear(
                         subspace.shape[0],
-                        hidden_size
+                        internal_hidden
                     ),
                     nn.Tanh(),
                 )
-                total_concat_size += hidden_size
+                total_concat_size += internal_hidden
 
         self.extractors = nn.ModuleDict(extractors)
 
         self.final_layer = nn.Sequential(
-            nn.Linear(total_concat_size, hidden_size),
+            nn.Linear(total_concat_size, internal_hidden),
             nn.Tanh(),
-            nn.Linear(hidden_size, hidden_size),
+            nn.Linear(internal_hidden, output_hidden),
             nn.Tanh()
         )
 
         # Update the features dim manually
-        self._features_dim = hidden_size
+        self._features_dim = output_hidden
 
     def forward(self, observations):
         encoded_tensor_list = []

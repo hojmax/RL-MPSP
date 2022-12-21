@@ -10,6 +10,9 @@ import torch
 import wandb
 import gym
 import sys
+import time
+
+start_time = time.time()
 
 # --- Config ---
 tags = ['tanh-nonlinearity', 'tetris']
@@ -25,8 +28,9 @@ config = {
     # Model
     'PI_LAYER_SIZES': [16, 16],
     'VF_LAYER_SIZES': [16, 16],
-    'CONTAINER_EMBEDDING_SIZE': 4,
-    'HIDDEN_SIZE': 16,
+    'CONTAINER_EMBEDDING_SIZE': 8,
+    'OUTPUT_HIDDEN': 256,
+    'INTERNAL_HIDDEN': 32,
     # Training
     'TOTAL_TIMESTEPS': 10000000,
     '_ENT_COEF': 1e-5,
@@ -65,7 +69,8 @@ policy_kwargs = {
     'features_extractor_kwargs': {
         'n_ports': config['N_PORTS'],
         'container_embedding_size': config['CONTAINER_EMBEDDING_SIZE'],
-        'hidden_size': config['HIDDEN_SIZE']
+        'internal_hidden': config['INTERNAL_HIDDEN'],
+        'output_hidden': config['OUTPUT_HIDDEN']
     },
 }
 create_new_run = (not wandb_run_path or train_again) and log_wandb
@@ -175,3 +180,8 @@ if create_new_run:
     run.summary['evaluation_benchmark'] = eval
 
     run.finish()
+
+
+# End time
+end_time = time.time()
+print(f"Time taken: {end_time - start_time}")
