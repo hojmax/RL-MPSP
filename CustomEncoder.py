@@ -17,7 +17,8 @@ class TransportationEncoder(nn.Module):
         Container_embedding,
         container_embedding_size,
         n_ports,
-        hidden_size
+        hidden_size,
+        device='cpu'
     ):
         super().__init__()
         self.Container_embedding = Container_embedding
@@ -33,11 +34,13 @@ class TransportationEncoder(nn.Module):
         self.flatten = nn.Flatten()
         self.tanh = nn.Tanh()
 
+        self.device = device
+
     def forward(self, x):
-        x = x.float()
+        x = x.to(self.device).float()
         batch_size = x.shape[0]
         # Positional encoding
-        ports = torch.arange(self.n_ports).repeat(batch_size, 1)
+        ports = torch.arange(self.n_ports, device=self.device).repeat(batch_size, 1)
         ports = self.Container_embedding(ports)
         output = self.linear1(x)
         # We add a positional encoding of the ports
@@ -72,7 +75,8 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
         n_ports,
         container_embedding_size,
         internal_hidden,
-        output_hidden
+        output_hidden,
+        device='cpu'
     ):
         # We do not know features-dim here before going over all the items,
         # so put something dummy for now. PyTorch requires calling
@@ -84,7 +88,8 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
         extractors = {}
         self.Container_embedding = nn.Embedding(
             n_ports,
-            container_embedding_size
+            container_embedding_size,
+            device=device
         )
 
         total_concat_size = 0
@@ -136,7 +141,8 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
                     self.Container_embedding,
                     container_embedding_size,
                     n_ports,
-                    internal_hidden
+                    internal_hidden,
+                    device=device
                 )
                 total_concat_size += subspace.shape[0] * internal_hidden
             elif key == 'will_block':
@@ -162,6 +168,8 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
         # Update the features dim manually
         self._features_dim = output_hidden
 
+        self.device = device
+
     def forward(self, observations):
         encoded_tensor_list = []
 
@@ -176,7 +184,7 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
             # We are given a (Batch, Height, Width) PyTorch tensor
             encoded_tensor_list.append(
                 extractor(
-                    observations[key]
+                    observations[key].to(self.device)
                 )
             )
 
