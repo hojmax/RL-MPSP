@@ -2,29 +2,35 @@
 
 ### Local
 
-For local use, simply run the `main.ipynb` notebook.
+For local use, simply run the `main.py` file.
 
 ### Colab
 
-When using colab, upload the `main.ipynb` notebook. Afterwards, add a cell to the top of the notebook with the following content:
+When using colab, add a cell to the top of the notebook with the following content:
 
 ```python
+!git pull
+%cd
 !git clone https://github.com/hojmax/RL-MPSP.git
-%cd /content/RL-MPSP
-!pip install -r requirements.txt
+%cd RL-MPSP
+!pip install -r requirements.txt --quiet
 ```
 
-When pushing to the repository, you need to run `!git pull` and restart the runtime for the changes to take effect.
+The `!git pull` means that you only have to execute 'Restart, and run all' for changes to take effect. If you also want to use the benchmarking data you should run the following command as well:
 
-If you also want to use the benchmarking data you should run the following command as well:
 ```python
-!git clone https://git_token@github.com/hojmax/rl-mpsp-benchmark.git
+!git clone https://[git_token]@github.com/hojmax/rl-mpsp-benchmark.git
 ```
 
 The ```git_token``` should be replaced by your personal access token, and is required since the repo is private. You can generate a token by going to:
 
 Settings -> Developer Settings -> Personal Access Tokens -> Tokens (classic)
 
+In the final block you add:
+
+```python
+!python main.py [n_processes] [wandb_api_key] [wandb_note]
+```
 
 ## 🏋️ Weights & Biases
 

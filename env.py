@@ -1,3 +1,5 @@
+import os
+os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
 import numpy as np
 from gym import spaces
 import gym
@@ -5,8 +7,6 @@ import pygame
 from enum import Enum
 from typing import Optional
 import helpers
-import os
-os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
 
 
 class text_type(Enum):
