@@ -42,7 +42,10 @@ class TransportationEncoder(nn.Module):
         x = x.to(self.device).float()
         batch_size = x.shape[0]
         # Positional encoding
-        ports = torch.arange(self.n_ports, device=self.device).repeat(batch_size, 1)
+        ports = torch.arange(
+            self.n_ports,
+            device=self.device
+        ).repeat(batch_size, 1)
         ports = self.Container_embedding(ports)
         output = self.linear1(x)
         # We add a positional encoding of the ports
@@ -113,12 +116,6 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
                         device=device
                     ),
                     nn.Tanh(),
-                    nn.Linear(
-                        internal_hidden,
-                        internal_hidden,
-                        device=device
-                    ),
-                    nn.Tanh(),
                     nn.Flatten()
                 )
                 total_concat_size += subspace.shape[1] * internal_hidden
@@ -166,8 +163,6 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
         self.final_layer = nn.Sequential(
             nn.Linear(total_concat_size, output_hidden, device=device),
             nn.Tanh(),
-            nn.Linear(output_hidden, output_hidden, device=device),
-            nn.Tanh()
         )
 
         # Update the features dim manually

@@ -16,7 +16,7 @@ import sys
 tags = ['tanh-nonlinearity', 'tetris']
 wandb_run_path = None
 train_again = False
-log_wandb = False
+log_wandb = True
 
 config = {
     # Environment
@@ -30,9 +30,9 @@ config = {
     'OUTPUT_HIDDEN': 256,
     'INTERNAL_HIDDEN': 32,
     # Training
-    'TOTAL_TIMESTEPS': 20000000,
+    'TOTAL_TIMESTEPS': 3e6,
     '_ENT_COEF': 1e-5,
-    '_LEARNING_RATE': 2e-3,
+    '_LEARNING_RATE': 1e-3,
     '_N_EPOCHS': 3,
     '_NORMALIZE_ADVANTAGE': False,
     '_N_STEPS': 2048,
