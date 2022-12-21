@@ -153,9 +153,9 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
         self.extractors = nn.ModuleDict(extractors)
 
         self.final_layer = nn.Sequential(
-            nn.Linear(total_concat_size, internal_hidden),
+            nn.Linear(total_concat_size, output_hidden),
             nn.Tanh(),
-            nn.Linear(internal_hidden, output_hidden),
+            nn.Linear(output_hidden, output_hidden),
             nn.Tanh()
         )
 
@@ -167,12 +167,7 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
 
         # self.extractors contain nn.Modules that do all the processing.
         for key, extractor in self.extractors.items():
-            # print(key)
-            # print(observations[key].shape)
-            # print(observations[key])
-            # extract = extractor(observations[key].long())
-            # print(extract.shape)
-            # print(extract)
+
             # We are given a (Batch, Height, Width) PyTorch tensor
             encoded_tensor_list.append(
                 extractor(

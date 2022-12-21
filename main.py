@@ -10,9 +10,7 @@ import torch
 import wandb
 import gym
 import sys
-import time
 
-start_time = time.time()
 
 # --- Config ---
 tags = ['tanh-nonlinearity', 'tetris']
@@ -26,15 +24,15 @@ config = {
     'COLUMNS': 4,
     'N_PORTS': 10,
     # Model
-    'PI_LAYER_SIZES': [16, 16],
-    'VF_LAYER_SIZES': [16, 16],
+    'PI_LAYER_SIZES': [64, 64],
+    'VF_LAYER_SIZES': [64, 64],
     'CONTAINER_EMBEDDING_SIZE': 8,
     'OUTPUT_HIDDEN': 256,
     'INTERNAL_HIDDEN': 32,
     # Training
     'TOTAL_TIMESTEPS': 10000000,
     '_ENT_COEF': 1e-5,
-    '_LEARNING_RATE': 1e-3,
+    '_LEARNING_RATE': 2e-3,
     '_N_EPOCHS': 3,
     '_NORMALIZE_ADVANTAGE': False,
     '_N_STEPS': 2048,
@@ -180,8 +178,3 @@ if create_new_run:
     run.summary['evaluation_benchmark'] = eval
 
     run.finish()
-
-
-# End time
-end_time = time.time()
-print(f"Time taken: {end_time - start_time}")

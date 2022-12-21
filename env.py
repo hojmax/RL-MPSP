@@ -25,7 +25,6 @@ class MPSPEnv(gym.Env):
         self.C = columns
         self.N = n_ports
         self.capacity = self.R * self.C
-        self.terminated_reward = 0
         self.screen = None
         self.colors = None
         self.probs = None
@@ -149,9 +148,6 @@ class MPSPEnv(gym.Env):
 
         # Port is zero indexed
         self.is_terminated = self.port+1 == self.N
-
-        if self.is_terminated:
-            reward += self.terminated_reward
 
         info = {
             "mask": self.action_masks()

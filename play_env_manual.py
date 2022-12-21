@@ -7,10 +7,11 @@ env = MPSPEnv(
 )
 env.reset()
 
-# Play the environment using console input
-# The command aN will add a container to column N
-# The command rN will remove a container from column N
-# The command q will quit the game
+print("Instructions:")
+print("The command aN will add a container to column N")
+print("The command rN will remove a container from column N")
+print("The command q will quit the game")
+
 
 env.print()
 print()
