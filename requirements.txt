@@ -1,3 +1,4 @@
 wandb==0.13.7
 stable-baselines3==1.6.2
 sb3-contrib==1.6.2
+pygame==2.1.2
