@@ -1,12 +1,12 @@
+import numpy as np
+from gym import spaces
+import gym
+import pygame
+from enum import Enum
+from typing import Optional
+import helpers
 import os
 os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
-import helpers
-from typing import Optional
-from enum import Enum
-import pygame
-import gym
-from gym import spaces
-import numpy as np
 
 
 class text_type(Enum):
@@ -71,23 +71,23 @@ class MPSPEnv(gym.Env):
             shape=(1,),
             dtype=np.int32
         )
-        # transportation_matrix_def = spaces.Box(
-        #     low=0,
-        #     high=np.iinfo(np.int32).max,
-        #     shape=(self.N, self.N),
-        #     dtype=np.int32
-        # )
-        # port_def = spaces.Box(
-        #     low=0,
-        #     high=self.N,
-        #     shape=(1,),
-        #     dtype=np.int32
-        # )
+        transportation_matrix_def = spaces.Box(
+            low=0,
+            high=np.iinfo(np.int32).max,
+            shape=(self.N, self.N),
+            dtype=np.int32
+        )
+        port_def = spaces.Box(
+            low=0,
+            high=self.N,
+            shape=(1,),
+            dtype=np.int32
+        )
         self.observation_space = spaces.Dict({
             'bay_matrix': bay_matrix_def,
             'container': container_def,
-            # 'transportation_matrix': transportation_matrix_def,
-            # 'port': port_def
+            'transportation_matrix': transportation_matrix_def,
+            'port': port_def
         })
         self.transportation_matrix = None
         self.bay_matrix = None
@@ -576,9 +576,9 @@ class MPSPEnv(gym.Env):
     def _get_observation(self):
         return {
             'bay_matrix': self.bay_matrix,
-            'container': [self._get_last_destination_container()]
-            # 'transportation_matrix': self.transportation_matrix,
-            # 'port': np.array([self.port])
+            'container': [self._get_last_destination_container()],
+            'transportation_matrix': self.transportation_matrix,
+            'port': [self.port]
         }
 
     def _get_mixed_distance_transportation_matrix(self, N):

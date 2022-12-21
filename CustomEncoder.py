@@ -30,8 +30,49 @@ class Transpose(nn.Module):
         return x.mT
 
 
+class TransportationEncoder(nn.Module):
+    def __init__(
+        self,
+        Port_embedding,
+        port_embedding_size,
+        rows,
+        columns,
+        hidden_size
+    ):
+        super().__init__()
+        self.Port_embedding = Port_embedding
+        self.rows = rows
+        self.linear1 = nn.Linear(
+            columns,
+            hidden_size
+        )
+        self.linear2 = nn.Linear(
+            port_embedding_size + hidden_size,
+            hidden_size
+        )
+        self.flatten = nn.Flatten()
+
+    def forward(self, x):
+        x = x.float()
+        # x.shape[0] is batch size
+        ports = torch.arange(self.rows).repeat(x.shape[0], 1)
+        ports = self.Port_embedding(ports)
+        output = self.linear1(x)
+        output = torch.cat([output, ports], dim=2)
+        output = self.linear2(output)
+        output = self.flatten(output)
+        return output
+
+
 class CustomCombinedExtractor(BaseFeaturesExtractor):
-    def __init__(self, observation_space, n_ports, vocab_size, embedding_dim, encoding_size):
+    def __init__(
+        self,
+        observation_space,
+        n_ports,
+        container_embedding_size,
+        port_embedding_size,
+        hidden_size
+    ):
         # We do not know features-dim here before going over all the items,
         # so put something dummy for now. PyTorch requires calling
         # nn.Module.__init__ before adding modules
@@ -41,8 +82,12 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
         )
         extractors = {}
         self.Container_embedding = nn.Embedding(
-            vocab_size,
-            embedding_dim
+            n_ports,
+            container_embedding_size
+        )
+        self.Port_embedding = nn.Embedding(
+            n_ports,
+            port_embedding_size
         )
 
         total_concat_size = 0
@@ -57,24 +102,39 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
                     # Flatten the embedding dimension, keep batch and column
                     nn.Flatten(2),
                     nn.Linear(
-                        subspace.shape[0] * embedding_dim,
-                        encoding_size
+                        subspace.shape[0] * container_embedding_size,
+                        hidden_size
                     ),
                     nn.Tanh(),
                     nn.Linear(
-                        encoding_size,
-                        encoding_size
+                        hidden_size,
+                        hidden_size
                     ),
                     nn.Tanh(),
                     nn.Flatten()
                 )
-                total_concat_size += subspace.shape[1] * encoding_size
+                total_concat_size += subspace.shape[1] * hidden_size
             elif key == 'container':
                 extractors[key] = nn.Sequential(
                     self.Container_embedding,
                     nn.Flatten()
                 )
-                total_concat_size += embedding_dim
+                total_concat_size += container_embedding_size
+            elif key == 'port':
+                extractors[key] = nn.Sequential(
+                    self.Port_embedding,
+                    nn.Flatten()
+                )
+                total_concat_size += port_embedding_size
+            elif key == 'transportation_matrix':
+                extractors[key] = TransportationEncoder(
+                    self.Port_embedding,
+                    port_embedding_size,
+                    subspace.shape[0],
+                    subspace.shape[1],
+                    hidden_size
+                )
+                total_concat_size += subspace.shape[0] * hidden_size
 
         self.extractors = nn.ModuleDict(extractors)
 

@@ -21,10 +21,11 @@ config = {
     'COLUMNS': 4,
     'N_PORTS': 10,
     # Model
-    'PI_LAYER_SIZES': [64, 64, 64],
+    'PI_LAYER_SIZES': [32, 32],
     'VF_LAYER_SIZES': [32, 32],
-    'EMBEDDING_DIM': 16,
-    'ENCODING_SIZE': 64,
+    'PORT_EMBEDDING_SIZE': 8,
+    'CONTAINER_EMBEDDING_SIZE': 8,
+    'HIDDEN_SIZE': 32,
     # Training
     'TOTAL_TIMESTEPS': 9600000,
     '_ENT_COEF': 1e-5,
@@ -59,10 +60,10 @@ policy_kwargs = {
     }],
     'features_extractor_class': CustomCombinedExtractor,
     'features_extractor_kwargs': {
-        'vocab_size': config['N_PORTS'],
-        'embedding_dim': config['EMBEDDING_DIM'],
         'n_ports': config['N_PORTS'],
-        'encoding_size': config['ENCODING_SIZE']
+        'port_embedding_size': config['PORT_EMBEDDING_SIZE'],
+        'container_embedding_size': config['CONTAINER_EMBEDDING_SIZE'],
+        'hidden_size': config['HIDDEN_SIZE']
     },
 }
 create_new_run = not wandb_run_path or train_again
