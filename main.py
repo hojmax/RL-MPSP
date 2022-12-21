@@ -16,7 +16,7 @@ import sys
 tags = ['tanh-nonlinearity', 'tetris']
 wandb_run_path = None
 train_again = False
-log_wandb = True
+log_wandb = False
 
 config = {
     # Environment
@@ -30,7 +30,7 @@ config = {
     'OUTPUT_HIDDEN': 256,
     'INTERNAL_HIDDEN': 32,
     # Training
-    'TOTAL_TIMESTEPS': 10000000,
+    'TOTAL_TIMESTEPS': 20000000,
     '_ENT_COEF': 1e-5,
     '_LEARNING_RATE': 2e-3,
     '_N_EPOCHS': 3,
@@ -68,7 +68,8 @@ policy_kwargs = {
         'n_ports': config['N_PORTS'],
         'container_embedding_size': config['CONTAINER_EMBEDDING_SIZE'],
         'internal_hidden': config['INTERNAL_HIDDEN'],
-        'output_hidden': config['OUTPUT_HIDDEN']
+        'output_hidden': config['OUTPUT_HIDDEN'],
+        'device': device
     },
 }
 create_new_run = (not wandb_run_path or train_again) and log_wandb
