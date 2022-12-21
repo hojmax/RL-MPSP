@@ -277,7 +277,7 @@ class MPSPEnv(gym.Env):
         # Draw a box for each action. Remove are below the add boxes.
         # Color the box darker green depending on the probability
         # If it is the action, make the border thicker
-        gradient = helpers.get_color_gradient('#dd3e54', '#6be585', 100)
+        gradient = color_helpers.get_color_gradient('#dd3e54', '#6be585', 100)
 
         probs = self.probs.detach().cpu().numpy().squeeze()
 
