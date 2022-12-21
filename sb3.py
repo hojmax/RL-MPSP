@@ -9,6 +9,7 @@ import numpy as np
 import torch
 import wandb
 import gym
+import sys
 
 # --- Config ---
 tags = ['tanh-nonlinearity', 'tetris']
@@ -43,7 +44,8 @@ env = make_vec_env(
         config['COLUMNS'],
         config['N_PORTS']
     ),
-    n_envs=8  # M2 with 8 cores
+    # Take cores from command line, default to 8
+    n_envs=int(sys.argv[1]) if len(sys.argv) > 1 else 8,
 )
 
 policy_kwargs = {
