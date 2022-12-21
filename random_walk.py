@@ -1,23 +1,33 @@
 from env import MPSPEnv
-from benchmark import get_benchmarking_data
 import numpy as np
-import os
-os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
-import pygame
-import gym
-import wandb
-# wandb.init(monitor_gym=True)
+import pandas as pd
+import json
 
 env = MPSPEnv(10, 4, 10)
 
 
-rewards = []
+def state_to_json(state):
+    return {
+        'bay_matrix': state['bay_matrix'].tolist(),
+        'port': int(state['port'][0]),
+        'transportation_matrix': state['transportation_matrix'].tolist(),
+    }
+
+
+
+data = []
 
 for i in range(100):
 
-    env.reset()
-    print(env.transportation_matrix)
-    cum_reward = 0
+    # Reset and add initial state
+    state = env.reset()
+    t = 0
+    data.append({
+        'initial_state': state_to_json(state),
+        'observations': [],
+    })
+
+    t += 1
     done = False
     while not done:
         
@@ -26,16 +36,21 @@ for i in range(100):
         action_p = action_mask / np.sum(action_mask)
         
         action = np.random.choice(np.arange(len(action_mask)), p=action_p)
-        obs, reward, done, _ = env.step(action)
-        cum_reward += reward
+        state, reward, done, _ = env.step(action)
+        data[-1]['observations'].append({
+            'state': state_to_json(state),
+            'reward': reward,
+            'done': done,
+            'action': int(action),
+        })
+        t += 1
 
-    rewards.append(cum_reward)
-
-
-print(f'Average reward: {np.mean(rewards)}')
-print(f'Max reward: {np.max(rewards)}')
-print(f'Min reward: {np.min(rewards)}')
-print(f'Rewards above -10: {np.sum(np.array(rewards) > -10)}')
+# Serializing json
+json_object = json.dumps(data, indent=4)
+ 
+# Writing to sample.json
+with open("data.json", "w") as outfile:
+    outfile.write(json_object)
 
 
     

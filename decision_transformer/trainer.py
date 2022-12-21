@@ -29,6 +29,7 @@ import random
 import cv2
 import torch
 from PIL import Image
+from env import MPSPEnv
 
 class TrainerConfig:
     # optimization parameters
@@ -169,9 +170,7 @@ class Trainer:
 
     def get_returns(self, ret):
         self.model.train(False)
-        args=Args(self.config.game.lower(), self.config.seed)
-        env = Env(args)
-        env.eval()
+        env = MPSPEnv(10, 4, 10)
 
         T_rewards, T_Qs = [], []
         done = True
