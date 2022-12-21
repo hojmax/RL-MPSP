@@ -23,7 +23,6 @@ config = {
     # Model
     'PI_LAYER_SIZES': [16, 16],
     'VF_LAYER_SIZES': [16, 16],
-    'PORT_EMBEDDING_SIZE': 4,
     'CONTAINER_EMBEDDING_SIZE': 4,
     'HIDDEN_SIZE': 16,
     # Training
@@ -61,7 +60,6 @@ policy_kwargs = {
     'features_extractor_class': CustomCombinedExtractor,
     'features_extractor_kwargs': {
         'n_ports': config['N_PORTS'],
-        'port_embedding_size': config['PORT_EMBEDDING_SIZE'],
         'container_embedding_size': config['CONTAINER_EMBEDDING_SIZE'],
         'hidden_size': config['HIDDEN_SIZE']
     },

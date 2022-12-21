@@ -33,21 +33,20 @@ class Transpose(nn.Module):
 class TransportationEncoder(nn.Module):
     def __init__(
         self,
-        Port_embedding,
-        port_embedding_size,
-        rows,
-        columns,
+        Container_embedding,
+        container_embedding_size,
+        n_ports,
         hidden_size
     ):
         super().__init__()
-        self.Port_embedding = Port_embedding
-        self.rows = rows
+        self.Container_embedding = Container_embedding
+        self.n_ports = n_ports
         self.linear1 = nn.Linear(
-            columns,
+            n_ports,
             hidden_size
         )
         self.linear2 = nn.Linear(
-            port_embedding_size + hidden_size,
+            container_embedding_size + hidden_size,
             hidden_size
         )
         self.flatten = nn.Flatten()
@@ -56,9 +55,11 @@ class TransportationEncoder(nn.Module):
     def forward(self, x):
         x = x.float()
         batch_size = x.shape[0]
-        ports = torch.arange(self.rows).repeat(batch_size, 1)
-        ports = self.Port_embedding(ports)
+        # Positional encoding
+        ports = torch.arange(self.n_ports).repeat(batch_size, 1)
+        ports = self.Container_embedding(ports)
         output = self.linear1(x)
+        # We add a positional encoding of the ports
         output = torch.cat([output, ports], dim=2)
         output = self.tanh(output)
         output = self.linear2(output)
@@ -73,7 +74,6 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
         observation_space,
         n_ports,
         container_embedding_size,
-        port_embedding_size,
         hidden_size
     ):
         # We do not know features-dim here before going over all the items,
@@ -87,10 +87,6 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
         self.Container_embedding = nn.Embedding(
             n_ports,
             container_embedding_size
-        )
-        self.Port_embedding = nn.Embedding(
-            n_ports,
-            port_embedding_size
         )
 
         total_concat_size = 0
@@ -126,34 +122,31 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
                 total_concat_size += container_embedding_size
             elif key == 'port':
                 extractors[key] = nn.Sequential(
-                    self.Port_embedding,
+                    self.Container_embedding,
                     nn.Tanh(),
                     nn.Flatten()
                 )
-                total_concat_size += port_embedding_size
+                total_concat_size += container_embedding_size
             elif key == 'transportation_matrix':
                 extractors[key] = TransportationEncoder(
-                    self.Port_embedding,
-                    port_embedding_size,
-                    subspace.shape[0],
-                    subspace.shape[1],
+                    self.Container_embedding,
+                    container_embedding_size,
+                    n_ports,
                     hidden_size
                 )
                 total_concat_size += subspace.shape[0] * hidden_size
 
         self.extractors = nn.ModuleDict(extractors)
 
-        # self.final_layer = nn.Sequential(
-        #     nn.Linear(total_concat_size, encoding_size),
-        #     nn.Tanh(),
-        #     nn.Linear(encoding_size, encoding_size),
-        #     nn.Tanh(),
-        #     nn.Linear(encoding_size, encoding_size),
-        #     nn.Tanh()
-        # )
+        self.final_layer = nn.Sequential(
+            nn.Linear(total_concat_size, hidden_size),
+            nn.Tanh(),
+            nn.Linear(hidden_size, hidden_size),
+            nn.Tanh()
+        )
 
         # Update the features dim manually
-        self._features_dim = total_concat_size
+        self._features_dim = hidden_size
 
     def forward(self, observations):
         encoded_tensor_list = []
@@ -176,5 +169,5 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
 
         # Return a (B, self._features_dim) PyTorch tensor, where B is batch dimension.
         output = torch.cat(encoded_tensor_list, dim=1)
-        # output = self.final_layer(output)
+        output = self.final_layer(output)
         return output
