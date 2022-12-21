@@ -23,7 +23,7 @@ class Extract_upper_triangular_batched(nn.Module):
 
 
 class CustomCombinedExtractor(BaseFeaturesExtractor):
-    def __init__(self, observation_space, n_ports, vocab_size, embedding_dim):
+    def __init__(self, observation_space, n_ports, vocab_size, embedding_dim, encoding_size):
         # We do not know features-dim here before going over all the items,
         # so put something dummy for now. PyTorch requires calling
         # nn.Module.__init__ before adding modules
@@ -37,31 +37,23 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
         # We need to know size of the output of this extractor,
         # so go over all the spaces and compute output feature sizes
         for key, subspace in observation_space.spaces.items():
-            subspace_size = np.prod(subspace.shape)
-
             if key == 'bay_matrix':
+                subspace_size = np.prod(subspace.shape)
                 extractors[key] = nn.Sequential(
                     nn.Flatten(),
-                    nn.Embedding(
-                        vocab_size,
-                        embedding_dim
-                    ),
-                    nn.Flatten(),
-                    nn.Tanh(),
-                    nn.Linear(subspace_size * embedding_dim, 64),
-                    nn.Tanh(),
+                    # nn.Embedding(
+                    #     vocab_size,
+                    #     embedding_dim
+                    # ),
+                    # nn.Flatten()
                 )
-                total_concat_size += 64
+                total_concat_size += subspace_size # * embedding_dim
             elif key == 'transportation_matrix':
                 upper_triangular_size = int(
                     n_ports * (n_ports - 1) / 2
                 )  # Sum of 1 to n-1. Int for shape compatibility
-                extractors[key] = nn.Sequential(
-                    Extract_upper_triangular_batched(n_ports),
-                    nn.Linear(upper_triangular_size, 128),
-                    nn.Tanh(),
-                )
-                total_concat_size += 128
+                extractors[key] = Extract_upper_triangular_batched(n_ports)
+                total_concat_size += upper_triangular_size
             elif key == 'port':
                 extractors[key] = nn.Identity()  # No need to do anything
                 total_concat_size += 1  # Port is a scalar
@@ -69,12 +61,16 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
         self.extractors = nn.ModuleDict(extractors)
 
         self.final_layer = nn.Sequential(
-            nn.Linear(total_concat_size, 128),
+            nn.Linear(total_concat_size, encoding_size),
             nn.Tanh(),
+            nn.Linear(encoding_size, encoding_size),
+            nn.Tanh(),
+            nn.Linear(encoding_size, encoding_size),
+            nn.Tanh()
         )
 
         # Update the features dim manually
-        self._features_dim = 128
+        self._features_dim = encoding_size
 
     def forward(self, observations):
         encoded_tensor_list = []

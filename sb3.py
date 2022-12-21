@@ -3,7 +3,7 @@ from wandb.integration.sb3 import WandbCallback
 from sb3_contrib.ppo_mask import MaskablePPO
 from benchmark import get_benchmarking_data
 from CustomEncoder import CustomCombinedExtractor
-from env import MPSPEnv
+from env import MPSPEnv, FlatPlayingWrapper
 from tqdm import tqdm
 import numpy as np
 import torch
@@ -11,6 +11,7 @@ import wandb
 import gym
 
 # --- Config ---
+tags = ['tanh-nonlinearity', 'flat-playing']
 wandb_run_path = None
 train_again = False
 config = {
@@ -22,13 +23,13 @@ config = {
     'PI_LAYER_SIZES': [64, 64],
     'VF_LAYER_SIZES': [64, 64],
     'EMBEDDING_DIM': 8,
+    'ENCODING_SIZE': 256,
     # Training
     'TOTAL_TIMESTEPS': 2400000,
-    '_BATCH_SIZE': 128,
     '_ENT_COEF': 0.001,
-    '_LEARNING_RATE': 1e-4,
+    '_LEARNING_RATE': 1e-5,
     '_N_EPOCHS': 3,
-    '_NORMALIZE_ADVANTAGE': True,
+    '_NORMALIZE_ADVANTAGE': False,
     '_N_STEPS': 512,
     '_GAMMA': 0.99,
 }
@@ -37,11 +38,11 @@ config = {
 wandb.login()
 
 env = make_vec_env(
-    lambda: MPSPEnv(
+    lambda: FlatPlayingWrapper(MPSPEnv(
         config['ROWS'],
         config['COLUMNS'],
         config['N_PORTS']
-    ),
+    )),
     n_envs=8  # M2 with 8 cores
 )
 
@@ -55,7 +56,8 @@ policy_kwargs = {
     'features_extractor_kwargs': {
         'vocab_size': config['N_PORTS'],
         'embedding_dim': config['EMBEDDING_DIM'],
-        'n_ports': config['N_PORTS']
+        'n_ports': config['N_PORTS'],
+        'encoding_size': config['ENCODING_SIZE']
     },
 }
 create_new_run = not wandb_run_path or train_again
@@ -69,7 +71,7 @@ if create_new_run:
         config=config,
         notes=input("Weights and Biases run note: "),
         monitor_gym=True,
-        tags=['tanh-nonlinearity']
+        tags=tags
     )
 
 if wandb_run_path:
@@ -91,7 +93,6 @@ else:
     model = MaskablePPO(
         policy='MultiInputPolicy',
         env=env,
-        batch_size=config['_BATCH_SIZE'],
         verbose=0,
         tensorboard_log=f"runs/{run.id}",
         policy_kwargs=policy_kwargs,
@@ -151,9 +152,9 @@ for e in tqdm(eval_data, desc='Evaluating'):
         )
         obs_tensor, _ = model.policy.obs_to_tensor(obs)
         distribution = model.policy.get_distribution(obs_tensor)
-        env.env.probs = distribution.distribution.probs
-        env.env.prev_action = action
-        env.env.action_mask = action_mask
+        env.unwrapped.probs = distribution.distribution.probs
+        env.unwrapped.prev_action = action
+        env.unwrapped.action_mask = action_mask
 
         env.render()
         obs, reward, done, _ = env.step(action)

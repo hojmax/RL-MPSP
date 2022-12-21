@@ -1,18 +1,37 @@
+import helpers
+from typing import Optional
+from enum import Enum
+import pygame
 import gym
 from gym import spaces
 import numpy as np
 import os
 os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
-import pygame
-from enum import Enum
-from typing import Optional
-import helpers
 
 
 class text_type(Enum):
     CELL = 8
     HEADLINE = 36
     SUBHEADLINE = 28
+
+
+class FlatPlayingWrapper(gym.Wrapper):
+    def __init__(self, env):
+        super().__init__(env)
+        self.env = env
+
+    def step(self, action):
+        next_state, reward, done, info = self.env.step(action)
+        if (
+            # Adding containers
+            action < self.env.C and
+            # Not the first container in the column
+            self.env.column_counts[action] > 1 and
+            # Could have placed container in empty column
+            self.env.column_counts.min() == 0
+        ):
+            reward -= 5
+        return next_state, reward, done, info
 
 
 class MPSPEnv(gym.Env):

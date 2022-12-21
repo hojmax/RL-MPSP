@@ -9,3 +9,5 @@ runs
 rl-mpsp-benchmark
 .DS_Store
 video
+model.zip
+.pytest_cache

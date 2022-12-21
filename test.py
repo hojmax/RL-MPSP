@@ -1,10 +1,10 @@
-from env import MPSPEnv
+from env import MPSPEnv, FlatPlayingWrapper
 
-env = MPSPEnv(
+env = FlatPlayingWrapper(MPSPEnv(
     rows=10,
     columns=4,
     n_ports=10
-)
+))
 env.reset()
 
 # Play the environment using console input
