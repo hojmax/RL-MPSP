@@ -45,8 +45,7 @@ wandb.login(
     key=sys.argv[2] if len(sys.argv) > 2 else None
 )
 
-device = 'mps'
-# device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 env = make_vec_env(
     lambda: MPSPEnv(
