@@ -43,6 +43,8 @@ wandb.login(
     key=sys.argv[2] if len(sys.argv) > 2 else None
 )
 
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
 env = make_vec_env(
     lambda: MPSPEnv(
         config['ROWS'],
@@ -100,6 +102,7 @@ else:
         normalize_advantage=config['_NORMALIZE_ADVANTAGE'],
         n_steps=config['_N_STEPS'],
         gamma=config['_GAMMA'],
+        device=device,
     )
 
 if train_again or not wandb_run_path:
