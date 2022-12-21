@@ -13,8 +13,10 @@ import sys
 
 # --- Config ---
 tags = ['tanh-nonlinearity', 'tetris']
-wandb_run_path = None
-train_again = False
+wandb_run_path = "rl-msps/PPO-SB3/20iexx3g"
+train_again = True
+log_wandb = True
+
 config = {
     # Environment
     'ROWS': 10,
@@ -27,7 +29,7 @@ config = {
     'CONTAINER_EMBEDDING_SIZE': 4,
     'HIDDEN_SIZE': 16,
     # Training
-    'TOTAL_TIMESTEPS': 9600000,
+    'TOTAL_TIMESTEPS': 10000000,
     '_ENT_COEF': 1e-5,
     '_LEARNING_RATE': 1e-3,
     '_N_EPOCHS': 3,
@@ -66,7 +68,7 @@ policy_kwargs = {
         'hidden_size': config['HIDDEN_SIZE']
     },
 }
-create_new_run = not wandb_run_path or train_again
+create_new_run = (not wandb_run_path or train_again) and log_wandb
 
 if create_new_run:
     run = wandb.init(
@@ -87,21 +89,12 @@ if wandb_run_path:
         model_file.name,
         env=env
     )
-    if train_again:
-        model.learn(
-            total_timesteps=config['TOTAL_TIMESTEPS'],
-            callback=WandbCallback(
-                model_save_path=f"models/{run.id}",
-                model_save_freq=config['TOTAL_TIMESTEPS'] // 4,
-            ),
-            progress_bar=True,
-        )
 else:
     model = MaskablePPO(
         policy='MultiInputPolicy',
         env=env,
         verbose=0,
-        tensorboard_log=f"runs/{run.id}",
+        tensorboard_log=f"runs/{run.id}" if create_new_run else None,
         policy_kwargs=policy_kwargs,
         ent_coef=config['_ENT_COEF'],
         learning_rate=config['_LEARNING_RATE'],
@@ -111,13 +104,14 @@ else:
         gamma=config['_GAMMA'],
     )
 
+if train_again or not wandb_run_path:
     model.learn(
         total_timesteps=config['TOTAL_TIMESTEPS'],
         callback=WandbCallback(
             model_save_path=f"models/{run.id}",
             model_save_freq=config['TOTAL_TIMESTEPS'] // 4,
-        ),
-        progress_bar=True
+        ) if create_new_run else None,
+        progress_bar=True,
     )
 
 eval_data = get_benchmarking_data('rl-mpsp-benchmark/set_2')
