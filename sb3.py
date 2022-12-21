@@ -74,7 +74,8 @@ if create_new_run:
         sync_tensorboard=True,
         name=f"N{config['N_PORTS']}_R{config['ROWS']}_C{config['COLUMNS']}",
         config=config,
-        notes=input("Weights and Biases run note: "),
+        # Use command line arguments, otherwise input()
+        notes=sys.argv[3] if len(sys.argv) > 3 else input('Notes: '),
         monitor_gym=True,
         tags=tags
     )
