@@ -37,7 +37,7 @@ config = {
 # --------------
 
 wandb.login()
-
+print(sys.argv)
 env = make_vec_env(
     lambda: MPSPEnv(
         config['ROWS'],
