@@ -51,15 +51,18 @@ class TransportationEncoder(nn.Module):
             hidden_size
         )
         self.flatten = nn.Flatten()
+        self.tanh = nn.Tanh()
 
     def forward(self, x):
         x = x.float()
-        # x.shape[0] is batch size
-        ports = torch.arange(self.rows).repeat(x.shape[0], 1)
+        batch_size = x.shape[0]
+        ports = torch.arange(self.rows).repeat(batch_size, 1)
         ports = self.Port_embedding(ports)
         output = self.linear1(x)
         output = torch.cat([output, ports], dim=2)
+        output = self.tanh(output)
         output = self.linear2(output)
+        output = self.tanh(output)
         output = self.flatten(output)
         return output
 
@@ -117,12 +120,14 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
             elif key == 'container':
                 extractors[key] = nn.Sequential(
                     self.Container_embedding,
+                    nn.Tanh(),
                     nn.Flatten()
                 )
                 total_concat_size += container_embedding_size
             elif key == 'port':
                 extractors[key] = nn.Sequential(
                     self.Port_embedding,
+                    nn.Tanh(),
                     nn.Flatten()
                 )
                 total_concat_size += port_embedding_size

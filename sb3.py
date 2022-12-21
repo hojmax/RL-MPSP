@@ -21,11 +21,11 @@ config = {
     'COLUMNS': 4,
     'N_PORTS': 10,
     # Model
-    'PI_LAYER_SIZES': [32, 32],
-    'VF_LAYER_SIZES': [32, 32],
-    'PORT_EMBEDDING_SIZE': 8,
-    'CONTAINER_EMBEDDING_SIZE': 8,
-    'HIDDEN_SIZE': 32,
+    'PI_LAYER_SIZES': [16, 16],
+    'VF_LAYER_SIZES': [16, 16],
+    'PORT_EMBEDDING_SIZE': 4,
+    'CONTAINER_EMBEDDING_SIZE': 4,
+    'HIDDEN_SIZE': 16,
     # Training
     'TOTAL_TIMESTEPS': 9600000,
     '_ENT_COEF': 1e-5,
