@@ -1,10 +1,10 @@
-from env import MPSPEnv, FlatPlayingWrapper
+from env import MPSPEnv
 
-env = FlatPlayingWrapper(MPSPEnv(
+env = MPSPEnv(
     rows=10,
     columns=4,
     n_ports=10
-))
+)
 env.reset()
 
 # Play the environment using console input
@@ -42,4 +42,5 @@ while True:
         print("Sum reward: {}".format(sum_reward))
         print("Is terminated: {}".format(is_terminated))
         print("Mask: {}".format(info["mask"]))
+        print("Will block: {}".format(state["will_block"]))
         print()

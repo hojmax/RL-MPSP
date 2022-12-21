@@ -13,8 +13,8 @@ import sys
 
 # --- Config ---
 tags = ['tanh-nonlinearity', 'tetris']
-wandb_run_path = "rl-msps/PPO-SB3/20iexx3g"
-train_again = True
+wandb_run_path = None
+train_again = False
 log_wandb = True
 
 config = {

@@ -1,4 +1,4 @@
-import helpers
+import color_helpers
 from typing import Optional
 from enum import Enum
 import pygame
@@ -6,7 +6,7 @@ import gym
 from gym import spaces
 import numpy as np
 import os
-# Should be before pygame import
+# Should be before pygame import (may be out of order because of autoformatting)
 os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
 
 
@@ -65,11 +65,18 @@ class MPSPEnv(gym.Env):
             shape=(1,),
             dtype=np.int32
         )
+        will_block_def = spaces.Box(
+            low=0,
+            high=1,
+            shape=(self.C,),
+            dtype=np.int32
+        )
         self.observation_space = spaces.Dict({
             'bay_matrix': bay_matrix_def,
             'container': container_def,
             'transportation_matrix': transportation_matrix_def,
-            'port': port_def
+            'port': port_def,
+            'will_block': will_block_def
         })
         self.transportation_matrix = None
         self.bay_matrix = None
@@ -102,7 +109,8 @@ class MPSPEnv(gym.Env):
         )
         self.bay_matrix = np.zeros((self.R, self.C), dtype=np.int32)
         self.column_counts = np.zeros(self.C, dtype=np.int32)
-        self.max_value_per_column = np.zeros(self.C, dtype=np.int32)
+        # Initialize to max values
+        self.min_value_per_column = np.full(self.C, np.iinfo(np.int32).max)
         self.port = 0
         self.reward = 0
         self.is_terminated = False
@@ -192,6 +200,10 @@ class MPSPEnv(gym.Env):
         print(self.bay_matrix)
         print('Transportation matrix:')
         print(self.transportation_matrix)
+        print('Column counts:')
+        print(self.column_counts)
+        print('Min value per column:')
+        print(self.min_value_per_column)
 
     def render(self, mode='human'):
 
@@ -465,6 +477,11 @@ class MPSPEnv(gym.Env):
         # Update state
         container = self.bay_matrix[i, j]
         self.bay_matrix[i, j] = 0
+
+        # Check if min_value_per_column needs to be checked/updated
+        if container == self.min_value_per_column[j]:
+            self.min_value_per_column[j] = self.get_min_in_column(j)
+
         self.transportation_matrix[self.port, container] += 1
         self.column_counts[j] -= 1
 
@@ -482,16 +499,20 @@ class MPSPEnv(gym.Env):
 
         assert container != -1, "No containers to offload"
 
+        # Update min_value_per_column
+        self.min_value_per_column[j] = min(
+            self.min_value_per_column[j],
+            container
+        )
+
         # Update state
         self.bay_matrix[i, j] = container
         self.transportation_matrix[self.port, container] -= 1
 
         # Check if container is blocking (there exists a container in the same column with a higher destination)
         # If so, penalize
-        for k in self.bay_matrix[i+1:, j]:
-            if k < container:
-                delta_reward -= 1
-                break
+        if self.min_value_per_column[j] < container:
+            delta_reward -= 1
 
         # Sail along for every zero-row
         while np.sum(self.transportation_matrix[self.port]) == 0:
@@ -554,14 +575,36 @@ class MPSPEnv(gym.Env):
                 self.bay_matrix[i, j] = 0
                 self.column_counts[j] -= 1
 
+        # Must rebuild min_value_per_column, as we dont know which containers were removed
+        self.min_value_per_column = np.array([
+            self.get_min_in_column(i) for i in range(self.C)
+        ])
+
         return n_blocking_containers
 
+    def get_min_in_column(self, j):
+        """Returns the minimum value in column j (excluding zeros). If all values are zero, returns max int"""
+        non_zero_values = self.bay_matrix[:, j][self.bay_matrix[:, j] > 0]
+        if len(non_zero_values) == 0:
+            return np.iinfo(np.int32).max
+        else:
+            return np.min(non_zero_values)
+
     def _get_observation(self):
+        next_container = self._get_last_destination_container()
+
+        if next_container == -1:
+            # Last state, so no block
+            will_block = np.zeros(self.C, dtype=np.int32)
+        else:
+            will_block = self.min_value_per_column < next_container
+
         return {
             'bay_matrix': self.bay_matrix,
-            'container': [self._get_last_destination_container()],
+            'container': [next_container],
             'transportation_matrix': self.transportation_matrix,
-            'port': [self.port]
+            'port': [self.port],
+            'will_block': will_block,
         }
 
     def _get_mixed_distance_transportation_matrix(self, N):

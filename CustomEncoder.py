@@ -2,6 +2,7 @@ from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
 import torch.nn as nn
 import torch
 
+
 class Transpose(nn.Module):
     def __init__(self):
         super().__init__()
@@ -48,6 +49,22 @@ class TransportationEncoder(nn.Module):
         return output
 
 
+class ToLong(nn.Module):
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, x):
+        return x.long()
+
+
+class ToFloat(nn.Module):
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, x):
+        return x.float()
+
+
 class CustomCombinedExtractor(BaseFeaturesExtractor):
     def __init__(
         self,
@@ -75,6 +92,8 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
         for key, subspace in observation_space.spaces.items():
             if key == 'bay_matrix':
                 extractors[key] = nn.Sequential(
+                    # Long is required for embedding
+                    ToLong(),
                     # We want to encode columns, not rows
                     Transpose(),
                     self.Container_embedding,
@@ -95,6 +114,8 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
                 total_concat_size += subspace.shape[1] * hidden_size
             elif key == 'container':
                 extractors[key] = nn.Sequential(
+                    # Long is required for embedding
+                    ToLong(),
                     self.Container_embedding,
                     nn.Tanh(),
                     nn.Flatten()
@@ -102,6 +123,8 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
                 total_concat_size += container_embedding_size
             elif key == 'port':
                 extractors[key] = nn.Sequential(
+                    # Long is required for embedding
+                    ToLong(),
                     self.Container_embedding,
                     nn.Tanh(),
                     nn.Flatten()
@@ -115,6 +138,16 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
                     hidden_size
                 )
                 total_concat_size += subspace.shape[0] * hidden_size
+            elif key == 'will_block':
+                extractors[key] = nn.Sequential(
+                    ToFloat(),
+                    nn.Linear(
+                        subspace.shape[0],
+                        hidden_size
+                    ),
+                    nn.Tanh(),
+                )
+                total_concat_size += hidden_size
 
         self.extractors = nn.ModuleDict(extractors)
 
@@ -142,8 +175,7 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
             # We are given a (Batch, Height, Width) PyTorch tensor
             encoded_tensor_list.append(
                 extractor(
-                    # Make into long for nn.Embedding
-                    observations[key].long()
+                    observations[key]
                 )
             )
 
