@@ -1,16 +1,17 @@
+import os
+os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
+import wandb
+import gym
+import pygame
 from env import MPSPEnv
 from benchmark import get_benchmarking_data
 import numpy as np
-import os
-os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
-import pygame
-import gym
-import wandb
 # wandb.init(monitor_gym=True)
 
 env = MPSPEnv(10, 10, 10)
 # env = gym.wrappers.Monitor(env, './video', video_callable=lambda episode_id: True, force=True)
-env = gym.wrappers.RecordVideo(env, video_folder='video', step_trigger=lambda x: True)
+env = gym.wrappers.RecordVideo(
+    env, video_folder='video', step_trigger=lambda x: True)
 
 
 config = {
@@ -48,13 +49,13 @@ obs = env.reset(
 
 done = False
 while not done:
-    
+
     # take a random action
     action_mask = env.action_masks()
     action_p = action_mask / np.sum(action_mask)
-    
+
     action = np.random.choice(np.arange(len(action_mask)), p=action_p)
     env.render(probs=action_p, action=action)
     obs, reward, done, _ = env.step(action)
-    
+
 # wandb.log({"videos": [wandb.Video("./video/rl-video-step-0.mp4")]})

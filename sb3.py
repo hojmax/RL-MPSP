@@ -13,18 +13,18 @@ import sys
 
 # --- Config ---
 tags = ['tanh-nonlinearity', 'tetris']
-wandb_run_path = 'rl-msps/PPO-SB3/whngow47'
-train_again = True
+wandb_run_path = None
+train_again = False
 config = {
     # Environment
     'ROWS': 10,
     'COLUMNS': 4,
     'N_PORTS': 10,
     # Model
-    'PI_LAYER_SIZES': [64, 64],
-    'VF_LAYER_SIZES': [64, 64],
-    'EMBEDDING_DIM': 8,
-    'ENCODING_SIZE': 32,
+    'PI_LAYER_SIZES': [64, 64, 64],
+    'VF_LAYER_SIZES': [32, 32],
+    'EMBEDDING_DIM': 16,
+    'ENCODING_SIZE': 64,
     # Training
     'TOTAL_TIMESTEPS': 9600000,
     '_ENT_COEF': 1e-5,
