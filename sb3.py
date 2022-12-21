@@ -3,7 +3,7 @@ from wandb.integration.sb3 import WandbCallback
 from sb3_contrib.ppo_mask import MaskablePPO
 from benchmark import get_benchmarking_data
 from CustomEncoder import CustomCombinedExtractor
-from env import MPSPEnv, FlatPlayingWrapper
+from env import MPSPEnv
 from tqdm import tqdm
 import numpy as np
 import torch
@@ -11,9 +11,9 @@ import wandb
 import gym
 
 # --- Config ---
-tags = ['tanh-nonlinearity', 'flat-playing']
-wandb_run_path = None
-train_again = False
+tags = ['tanh-nonlinearity', 'tetris']
+wandb_run_path = 'rl-msps/PPO-SB3/whngow47'
+train_again = True
 config = {
     # Environment
     'ROWS': 10,
@@ -23,14 +23,14 @@ config = {
     'PI_LAYER_SIZES': [64, 64],
     'VF_LAYER_SIZES': [64, 64],
     'EMBEDDING_DIM': 8,
-    'ENCODING_SIZE': 256,
+    'ENCODING_SIZE': 32,
     # Training
-    'TOTAL_TIMESTEPS': 2400000,
-    '_ENT_COEF': 0.001,
-    '_LEARNING_RATE': 1e-5,
+    'TOTAL_TIMESTEPS': 9600000,
+    '_ENT_COEF': 1e-5,
+    '_LEARNING_RATE': 1e-3,
     '_N_EPOCHS': 3,
     '_NORMALIZE_ADVANTAGE': False,
-    '_N_STEPS': 512,
+    '_N_STEPS': 2048,
     '_GAMMA': 0.99,
 }
 # --------------
@@ -38,11 +38,11 @@ config = {
 wandb.login()
 
 env = make_vec_env(
-    lambda: FlatPlayingWrapper(MPSPEnv(
+    lambda: MPSPEnv(
         config['ROWS'],
         config['COLUMNS'],
         config['N_PORTS']
-    )),
+    ),
     n_envs=8  # M2 with 8 cores
 )
 

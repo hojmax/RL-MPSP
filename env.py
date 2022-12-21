@@ -65,22 +65,29 @@ class MPSPEnv(gym.Env):
             shape=(self.R, self.C),
             dtype=np.int32
         )
-        transportation_matrix_def = spaces.Box(
-            low=0,
-            high=np.iinfo(np.int32).max,
-            shape=(self.N, self.N),
-            dtype=np.int32
-        )
-        port_def = spaces.Box(
+        container_def = spaces.Box(
             low=0,
             high=self.N,
             shape=(1,),
             dtype=np.int32
         )
+        # transportation_matrix_def = spaces.Box(
+        #     low=0,
+        #     high=np.iinfo(np.int32).max,
+        #     shape=(self.N, self.N),
+        #     dtype=np.int32
+        # )
+        # port_def = spaces.Box(
+        #     low=0,
+        #     high=self.N,
+        #     shape=(1,),
+        #     dtype=np.int32
+        # )
         self.observation_space = spaces.Dict({
             'bay_matrix': bay_matrix_def,
-            'transportation_matrix': transportation_matrix_def,
-            'port': port_def
+            'container': container_def,
+            # 'transportation_matrix': transportation_matrix_def,
+            # 'port': port_def
         })
         self.transportation_matrix = None
         self.bay_matrix = None
@@ -569,8 +576,9 @@ class MPSPEnv(gym.Env):
     def _get_observation(self):
         return {
             'bay_matrix': self.bay_matrix,
-            'transportation_matrix': self.transportation_matrix,
-            'port': np.array([self.port])
+            'container': [self._get_last_destination_container()]
+            # 'transportation_matrix': self.transportation_matrix,
+            # 'port': np.array([self.port])
         }
 
     def _get_mixed_distance_transportation_matrix(self, N):
