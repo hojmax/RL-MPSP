@@ -1,26 +1,6 @@
 from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
-import torch.nn.functional as F
 import torch.nn as nn
-import numpy as np
 import torch
-
-
-# class Extract_upper_triangular_batched(nn.Module):
-#     def __init__(self, n_ports):
-#         super().__init__()
-#         self.upper_triangular_indeces = torch.triu_indices(
-#             n_ports,
-#             n_ports,
-#             offset=1  # We don't want to include the diagonal
-#         )
-
-#     def forward(self, x):
-#         return x[
-#             :,  # Batch dimension
-#             self.upper_triangular_indeces[0],
-#             self.upper_triangular_indeces[1]
-#         ].float()
-
 
 class Transpose(nn.Module):
     def __init__(self):
