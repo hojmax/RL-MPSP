@@ -3,4 +3,4 @@ stable-baselines3==1.6.2
 sb3-contrib==1.6.2
 pygame==2.1.2
 tensorboard==2.11.0
-tdqm==4.64.1
+tqdm==4.64.1
