@@ -36,8 +36,11 @@ config = {
 }
 # --------------
 
-wandb.login()
-print(sys.argv)
+wandb.login(
+    # Get key from command line, default to None
+    key=sys.argv[2] if len(sys.argv) > 2 else None
+)
+
 env = make_vec_env(
     lambda: MPSPEnv(
         config['ROWS'],
