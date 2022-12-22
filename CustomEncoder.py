@@ -1,6 +1,8 @@
 from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
 import torch.nn as nn
 import torch
+from torch_geometric.nn import GCNConv
+import torch.nn.functional as F
 
 
 class Transpose(nn.Module):
@@ -23,39 +25,59 @@ class TransportationEncoder(nn.Module):
         super().__init__()
         self.Container_embedding = Container_embedding
         self.n_ports = n_ports
-        self.linear1 = nn.Linear(
-            n_ports,
+        self.conv1 = GCNConv(container_embedding_size, hidden_size)
+        self.conv2 = GCNConv(hidden_size, container_embedding_size)
+
+        self.linear = nn.Linear(
+            container_embedding_size*n_ports,
             hidden_size,
-            device=device
         )
-        self.linear2 = nn.Linear(
-            container_embedding_size + hidden_size,
-            hidden_size,
-            device=device
-        )
-        self.flatten = nn.Flatten()
-        self.tanh = nn.Tanh()
 
         self.device = device
 
-    def forward(self, x):
-        x = x.to(self.device).float()
-        batch_size = x.shape[0]
-        # Positional encoding
-        ports = torch.arange(
-            self.n_ports,
-            device=self.device
-        ).repeat(batch_size, 1)
-        ports = self.Container_embedding(ports)
-        output = self.linear1(x)
-        # We add a positional encoding of the ports
-        output = torch.cat([output, ports], dim=2)
-        output = self.tanh(output)
-        output = self.linear2(output)
-        output = self.tanh(output)
-        output = self.flatten(output)
-        return output
+    def forward(self, adj):
+        adj = adj.to(self.device).float()
+        batch_size = adj.shape[0]
 
+        encoded_tensor_list = []
+
+        for i in range(batch_size):
+            
+            # Make the adjacency matrix symmetric
+            adj[i] = adj[i] + adj[i].t()
+
+            # Get edge indices
+            edge_indices = adj[i].nonzero().t().contiguous()
+
+            # Get edge weights
+            edge_weights = adj[i][edge_indices[0], edge_indices[1]]
+
+            # Initialize the ports/nodes
+            ports = torch.arange(
+                self.n_ports,
+                device=self.device
+            )
+            ports = self.Container_embedding(ports)
+
+            # Pass through the first layer
+            output = torch.tanh(self.conv1(ports, edge_indices, edge_weights))
+
+            # Pass through the second layer
+            output = torch.tanh(self.conv2(output, edge_indices, edge_weights))
+
+            # Add to the list
+            encoded_tensor_list.append(output)
+
+        # Stack the list
+        output = torch.stack(encoded_tensor_list, dim=0)
+
+        # Flatten the output
+        output = output.view(batch_size, -1)
+
+        # Pass through a linear layer
+        output = torch.tanh(self.linear(output))
+
+        return output
 
 class ToLong(nn.Module):
     def __init__(self):
@@ -145,7 +167,7 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
                     internal_hidden,
                     device=device
                 )
-                total_concat_size += subspace.shape[0] * internal_hidden
+                total_concat_size += internal_hidden
             elif key == 'will_block':
                 extractors[key] = nn.Sequential(
                     ToFloat(),

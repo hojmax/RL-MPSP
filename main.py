@@ -13,7 +13,7 @@ import sys
 
 
 # --- Config ---
-tags = ['tanh-nonlinearity', 'tetris']
+tags = ['GCNConv']
 wandb_run_path = None
 train_again = False
 log_wandb = True
@@ -24,13 +24,13 @@ config = {
     'COLUMNS': 4,
     'N_PORTS': 10,
     # Model
-    'PI_LAYER_SIZES': [64, 64],
-    'VF_LAYER_SIZES': [64, 64],
-    'CONTAINER_EMBEDDING_SIZE': 8,
+    'PI_LAYER_SIZES': [256, 256],
+    'VF_LAYER_SIZES': [256, 256],
+    'CONTAINER_EMBEDDING_SIZE': 16,
     'OUTPUT_HIDDEN': 256,
-    'INTERNAL_HIDDEN': 32,
+    'INTERNAL_HIDDEN': 128,
     # Training
-    'TOTAL_TIMESTEPS': 3e6,
+    'TOTAL_TIMESTEPS': 5e6,
     '_ENT_COEF': 0,
     '_LEARNING_RATE': 1e-4,
     '_N_EPOCHS': 3,
