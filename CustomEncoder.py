@@ -14,18 +14,15 @@ class Transpose(nn.Module):
 class TransportationEncoder(nn.Module):
     def __init__(
         self,
-        Container_embedding,
-        container_embedding_size,
         n_ports,
         hidden_size,
         device='cpu'
     ):
         super().__init__()
-        self.Container_embedding = Container_embedding
         self.n_ports = n_ports
         self.hidden_size = hidden_size
         self.rnn = nn.RNN(
-            n_ports + container_embedding_size,
+            n_ports,
             hidden_size,
             device=device,
             batch_first=True
@@ -35,18 +32,11 @@ class TransportationEncoder(nn.Module):
     def forward(self, x):
         x = x.to(self.device).float()
         batch_size = x.shape[0]
-        # Positional encoding
-        ports = torch.arange(
-            self.n_ports,
-            device=self.device
-        ).repeat(batch_size, 1)
-        ports = self.Container_embedding(ports)
-        # We add a positional encoding of the ports
-        output = torch.cat([x, ports], dim=2)
 
-        hidden = self.init_hidden(batch_size)
         # Pass through RNN
-        output, hidden = self.rnn(output, hidden)
+        hidden = self.init_hidden(batch_size)
+        _, hidden = self.rnn(x, hidden)
+
         # Hidden has shape (1, batch_size, hidden_size)
         return hidden.squeeze(0)
 
@@ -143,8 +133,6 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
                 total_concat_size += container_embedding_size
             elif key == 'transportation_matrix':
                 extractors[key] = TransportationEncoder(
-                    self.Container_embedding,
-                    container_embedding_size,
                     n_ports,
                     internal_hidden,
                     device=device

@@ -34,7 +34,7 @@ config = {
     '_ENT_COEF': 0,
     '_LEARNING_RATE': 1e-4,
     '_N_EPOCHS': 3,
-    '_NORMALIZE_ADVANTAGE': False,
+    '_NORMALIZE_ADVANTAGE': True,
     '_N_STEPS': 2048,
     '_GAMMA': 0.99,
 }
