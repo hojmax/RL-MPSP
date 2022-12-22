@@ -84,7 +84,8 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
         container_embedding_size,
         internal_hidden,
         output_hidden,
-        device='cpu'
+        lstm_hidden,
+        device='cpu',
     ):
         # We do not know features-dim here before going over all the items,
         # so put something dummy for now. PyTorch requires calling
@@ -146,10 +147,10 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
                 extractors[key] = LoadingListEncoder(
                     self.Container_embedding,
                     container_embedding_size,
-                    internal_hidden,
+                    lstm_hidden,
                     device=device
                 )
-                total_concat_size += internal_hidden
+                total_concat_size += lstm_hidden
             elif key == 'will_block':
                 extractors[key] = nn.Sequential(
                     ToFloat(),

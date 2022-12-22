@@ -16,7 +16,7 @@ import sys
 tags = ['LSTM', 'authentic matrices']
 wandb_run_path = None
 train_again = False
-log_wandb = True
+log_wandb = False
 
 config = {
     # Environment
@@ -29,6 +29,7 @@ config = {
     'CONTAINER_EMBEDDING_SIZE': 8,
     'OUTPUT_HIDDEN': 256,
     'INTERNAL_HIDDEN': 32,
+    'LSTM_HIDDEN': 64,
     # Training
     'TOTAL_TIMESTEPS': 3000000,
     '_ENT_COEF': 0,
@@ -69,7 +70,8 @@ policy_kwargs = {
         'container_embedding_size': config['CONTAINER_EMBEDDING_SIZE'],
         'internal_hidden': config['INTERNAL_HIDDEN'],
         'output_hidden': config['OUTPUT_HIDDEN'],
-        'device': device
+        'lstm_hidden': config['LSTM_HIDDEN'],
+        'device': device,
     },
 }
 create_new_run = (not wandb_run_path or train_again) and log_wandb
