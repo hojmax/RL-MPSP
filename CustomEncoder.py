@@ -30,14 +30,6 @@ class TransportationEncoder(nn.Module):
             device=device,
             batch_first=True
         )
-        self.linear = nn.Linear(
-            hidden_size,
-            hidden_size,
-            device=device
-        )
-        self.flatten = nn.Flatten()
-        self.tanh = nn.Tanh()
-
         self.device = device
 
     def forward(self, x):
@@ -51,24 +43,21 @@ class TransportationEncoder(nn.Module):
         ports = self.Container_embedding(ports)
         # We add a positional encoding of the ports
         output = torch.cat([x, ports], dim=2)
-        # pass through RNN
 
         hidden = self.init_hidden(batch_size)
-
-        for i in range(self.n_ports):
-            _, hidden = self.rnn(output[:, 1, :].unsqueeze(1), hidden)
-
-        return hidden.squeeze(0)
+        # Pass through RNN
+        output, hidden = self.rnn(output, hidden)
+        # Extract last hidden state
+        output = output[:, -1, :]
+        return output
 
     def init_hidden(self, batch_size):
         return torch.zeros(
-            1, 
+            1,
             batch_size,
             self.hidden_size,
             device=self.device
         )
-
-        
 
 
 class ToLong(nn.Module):
