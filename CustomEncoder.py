@@ -23,13 +23,15 @@ class TransportationEncoder(nn.Module):
         super().__init__()
         self.Container_embedding = Container_embedding
         self.n_ports = n_ports
-        self.linear1 = nn.Linear(
-            n_ports,
+        self.hidden_size = hidden_size
+        self.rnn = nn.RNN(
+            n_ports + container_embedding_size,
             hidden_size,
-            device=device
+            device=device,
+            batch_first=True
         )
-        self.linear2 = nn.Linear(
-            container_embedding_size + hidden_size,
+        self.linear = nn.Linear(
+            hidden_size,
             hidden_size,
             device=device
         )
@@ -47,14 +49,26 @@ class TransportationEncoder(nn.Module):
             device=self.device
         ).repeat(batch_size, 1)
         ports = self.Container_embedding(ports)
-        output = self.linear1(x)
         # We add a positional encoding of the ports
-        output = torch.cat([output, ports], dim=2)
-        output = self.tanh(output)
-        output = self.linear2(output)
-        output = self.tanh(output)
-        output = self.flatten(output)
-        return output
+        output = torch.cat([x, ports], dim=2)
+        # pass through RNN
+
+        hidden = self.init_hidden(batch_size)
+
+        for i in range(self.n_ports):
+            _, hidden = self.rnn(output[:, 1, :].unsqueeze(1), hidden)
+
+        return hidden.squeeze(0)
+
+    def init_hidden(self, batch_size):
+        return torch.zeros(
+            1, 
+            batch_size,
+            self.hidden_size,
+            device=self.device
+        )
+
+        
 
 
 class ToLong(nn.Module):
@@ -145,7 +159,7 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
                     internal_hidden,
                     device=device
                 )
-                total_concat_size += subspace.shape[0] * internal_hidden
+                total_concat_size += internal_hidden
             elif key == 'will_block':
                 extractors[key] = nn.Sequential(
                     ToFloat(),

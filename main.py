@@ -13,7 +13,7 @@ import sys
 
 
 # --- Config ---
-tags = ['tanh-nonlinearity', 'tetris']
+tags = []
 wandb_run_path = None
 train_again = False
 log_wandb = True
@@ -30,9 +30,9 @@ config = {
     'OUTPUT_HIDDEN': 256,
     'INTERNAL_HIDDEN': 32,
     # Training
-    'TOTAL_TIMESTEPS': 3e6,
-    '_ENT_COEF': 1e-5,
-    '_LEARNING_RATE': 1e-3,
+    'TOTAL_TIMESTEPS': 3000000,
+    '_ENT_COEF': 0,
+    '_LEARNING_RATE': 1e-4,
     '_N_EPOCHS': 3,
     '_NORMALIZE_ADVANTAGE': False,
     '_N_STEPS': 2048,
