@@ -11,41 +11,52 @@ class Transpose(nn.Module):
         return x.mT
 
 
-class TransportationEncoder(nn.Module):
+class LoadingListEncoder(nn.Module):
     def __init__(
         self,
-        n_ports,
+        Container_embedding,
+        container_embedding_size,
         hidden_size,
         device='cpu'
     ):
         super().__init__()
-        self.n_ports = n_ports
+        self.Container_embedding = Container_embedding
         self.hidden_size = hidden_size
-        self.rnn = nn.RNN(
-            n_ports,
+        self.lstm = nn.LSTM(
+            container_embedding_size,
             hidden_size,
             device=device,
             batch_first=True
         )
         self.device = device
 
-    def forward(self, x):
-        x = x.to(self.device).float()
-        batch_size = x.shape[0]
+    def forward(self, loading_lists):
+        output = loading_lists.to(self.device).long()
+        batch_size = output.shape[0]
+        output = self.Container_embedding(output)
 
-        # Pass through RNN
+        # Pass through LSTM
         hidden = self.init_hidden(batch_size)
-        _, hidden = self.rnn(x, hidden)
+        _, hidden = self.lstm(output, hidden)
 
-        # Hidden has shape (1, batch_size, hidden_size)
-        return hidden.squeeze(0)
+        # Return the last hidden states
+        return hidden[0].squeeze(0)
 
     def init_hidden(self, batch_size):
-        return torch.zeros(
-            1,
-            batch_size,
-            self.hidden_size,
-            device=self.device
+        # LSTM has two hidden states, one for hidden and one for cell
+        return (
+            torch.zeros(
+                1,
+                batch_size,
+                self.hidden_size,
+                device=self.device
+            ),
+            torch.zeros(
+                1,
+                batch_size,
+                self.hidden_size,
+                device=self.device
+            )
         )
 
 
@@ -131,9 +142,10 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
                     nn.Flatten()
                 )
                 total_concat_size += container_embedding_size
-            elif key == 'transportation_matrix':
-                extractors[key] = TransportationEncoder(
-                    n_ports,
+            elif key == 'loading_list':
+                extractors[key] = LoadingListEncoder(
+                    self.Container_embedding,
+                    container_embedding_size,
                     internal_hidden,
                     device=device
                 )
@@ -164,11 +176,18 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
 
     def forward(self, observations):
         encoded_tensor_list = []
+        debug_print = False
 
         # self.extractors contain nn.Modules that do all the processing.
         for key, extractor in self.extractors.items():
-
             # We are given a (Batch, Height, Width) PyTorch tensor
+            if debug_print:
+                print(key)
+                print(observations[key].shape)
+                print(observations[key])
+                extraction = extractor(observations[key].to(self.device))
+                print(extraction.shape)
+                print(extraction)
             encoded_tensor_list.append(
                 extractor(
                     observations[key].to(self.device)

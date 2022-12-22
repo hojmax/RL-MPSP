@@ -42,25 +42,19 @@ class MPSPEnv(gym.Env):
         self.action_space = spaces.Discrete(self.C)
         bay_matrix_def = spaces.Box(
             low=0,
-            high=self.N,
+            high=self.N-1,
             shape=(self.R, self.C),
             dtype=np.int32
         )
         container_def = spaces.Box(
             low=0,
-            high=self.N,
+            high=self.N-1,
             shape=(1,),
-            dtype=np.int32
-        )
-        transportation_matrix_def = spaces.Box(
-            low=0,
-            high=np.iinfo(np.int32).max,
-            shape=(self.N, self.N),
             dtype=np.int32
         )
         port_def = spaces.Box(
             low=0,
-            high=self.N,
+            high=self.N-1,
             shape=(1,),
             dtype=np.int32
         )
@@ -70,12 +64,20 @@ class MPSPEnv(gym.Env):
             shape=(self.C,),
             dtype=np.int32
         )
+        loading_list_def = spaces.Box(
+            low=0,
+            high=self.N-1,
+            # This is the maximal number of containers
+            # that can be loaded during a fare (full loading and unloading at every port)
+            shape=(self.C*self.R*(self.N-1),),
+            dtype=np.int32
+        )
         self.observation_space = spaces.Dict({
             'bay_matrix': bay_matrix_def,
             'container': container_def,
-            'transportation_matrix': transportation_matrix_def,
             'port': port_def,
-            'will_block': will_block_def
+            'will_block': will_block_def,
+            'loading_list': loading_list_def,
         })
         self.transportation_matrix = None
         self.bay_matrix = None
@@ -102,10 +104,12 @@ class MPSPEnv(gym.Env):
     def reset(self, transportation_matrix=None, seed=None):
         """Reset the state of the environment to an initial state"""
         self.seed(seed)
+        self.loading_list = []
         self.transportation_matrix = (
             self._get_mixed_distance_transportation_matrix(self.N)
             if transportation_matrix is None else transportation_matrix
         )
+        self._fill_loading_list()
         self.bay_matrix = np.zeros((self.R, self.C), dtype=np.int32)
         self.column_counts = np.zeros(self.C, dtype=np.int32)
         # Initialize to max values
@@ -200,6 +204,8 @@ class MPSPEnv(gym.Env):
         print(self.column_counts)
         print('Min value per column:')
         print(self.min_value_per_column)
+        print('Loading list:')
+        print(self.loading_list)
 
     def render(self, mode='human'):
 
@@ -474,6 +480,9 @@ class MPSPEnv(gym.Env):
         container = self.bay_matrix[i, j]
         self.bay_matrix[i, j] = 0
 
+        # Add to beginning of loading list
+        self.loading_list.insert(0, container)
+
         # Check if min_value_per_column needs to be checked/updated
         if container == self.min_value_per_column[j]:
             self.min_value_per_column[j] = self.get_min_in_column(j)
@@ -504,6 +513,9 @@ class MPSPEnv(gym.Env):
         # Update state
         self.bay_matrix[i, j] = container
         self.transportation_matrix[self.port, container] -= 1
+
+        # Remove first container from loading list
+        self.loading_list.pop(0)
 
         # Check if container is blocking (there exists a container in the same column with a higher destination)
         # If so, penalize
@@ -571,10 +583,14 @@ class MPSPEnv(gym.Env):
                 self.bay_matrix[i, j] = 0
                 self.column_counts[j] -= 1
 
-        # Must rebuild min_value_per_column, as we dont know which containers were removed
+        # Rebuild min_value_per_column, as we dont know which containers were removed
         self.min_value_per_column = np.array([
             self.get_min_in_column(i) for i in range(self.C)
         ])
+
+        # Rebuild load list
+        self.loading_list = []
+        self._fill_loading_list()
 
         return n_blocking_containers
 
@@ -595,12 +611,19 @@ class MPSPEnv(gym.Env):
         else:
             will_block = self.min_value_per_column < next_container
 
+        padded_loading_list = np.pad(
+            self.loading_list,
+            # Pad with zeros to R*C*(N-1) length
+            (0, self.R*self.C*(self.N-1) - len(self.loading_list)),
+            'constant'
+        )
+
         return {
             'bay_matrix': self.bay_matrix,
             'container': [next_container],
-            'transportation_matrix': self.transportation_matrix,
             'port': [self.port],
             'will_block': will_block,
+            'loading_list': padded_loading_list,
         }
 
     def _get_mixed_distance_transportation_matrix(self, N):
@@ -633,6 +656,12 @@ class MPSPEnv(gym.Env):
 
         return self._get_transportation_matrix(N, ordering)
 
+    def _fill_loading_list(self):
+        """Create loading list from transportation matrix"""
+        for i in range(self.N-1):
+            for j in range(self.N-1, i, -1):
+                self.loading_list += [j] * self.transportation_matrix[i, j]
+
     def _get_transportation_matrix(self, N, ordering):
         """Generates a feasible transportation matrix (short distance)
 
@@ -641,20 +670,32 @@ class MPSPEnv(gym.Env):
             ordering (list): List of lists of what ports to add destination containers to first
         """
         output = np.zeros((N, N), dtype=np.int32)
-        bay_capacity = self.capacity if self.virtual_Capacity is None else self.virtual_Capacity
+        bay_capacity = (
+            self.capacity
+            if self.virtual_Capacity is None else
+            self.virtual_Capacity
+        )
+
+        exponential_constant = 0.5
+        exponential_multiplier = 10
 
         for i in range(N-1):
             for j in ordering[i]:
-                output[i, j] = np.random.randint(0, bay_capacity+1)
+                output[i, j] = min(
+                    np.random.exponential(
+                        exponential_constant
+                    ) * exponential_multiplier,
+                    bay_capacity
+                )
                 bay_capacity -= output[i, j]
+
+            if bay_capacity > 0:
+                # Make sure that ship is fully loaded
+                output[i, np.random.choice(ordering[i])] += bay_capacity
+                bay_capacity = 0
 
             # Offloaded at port
             for h in range(i+1):
                 bay_capacity += output[h, i+1]
 
-        # Make sure the first row of the transportation matrix has containers
-        # Otherwise you could have skipped the first port
-        if np.sum(output[0]) == 0:
-            return self._get_transportation_matrix(N, ordering)
-        else:
-            return output
+        return output
