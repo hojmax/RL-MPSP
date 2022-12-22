@@ -47,9 +47,8 @@ class TransportationEncoder(nn.Module):
         hidden = self.init_hidden(batch_size)
         # Pass through RNN
         output, hidden = self.rnn(output, hidden)
-        # Extract last hidden state
-        output = output[:, -1, :]
-        return output
+        # Hidden has shape (1, batch_size, hidden_size)
+        return hidden.squeeze(0)
 
     def init_hidden(self, batch_size):
         return torch.zeros(
@@ -105,6 +104,8 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
         # so go over all the spaces and compute output feature sizes
         for key, subspace in observation_space.spaces.items():
             if key == 'bay_matrix':
+                rows = subspace.shape[0]
+                cols = subspace.shape[1]
                 extractors[key] = nn.Sequential(
                     # Long is required for embedding
                     ToLong(),
@@ -114,14 +115,14 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
                     # Flatten the embedding dimension, keep batch and column
                     nn.Flatten(2),
                     nn.Linear(
-                        subspace.shape[0] * container_embedding_size,
+                        rows * container_embedding_size,
                         internal_hidden,
                         device=device
                     ),
                     nn.Tanh(),
                     nn.Flatten()
                 )
-                total_concat_size += subspace.shape[1] * internal_hidden
+                total_concat_size += cols * internal_hidden
             elif key == 'container':
                 extractors[key] = nn.Sequential(
                     # Long is required for embedding

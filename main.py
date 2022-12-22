@@ -13,7 +13,7 @@ import sys
 
 
 # --- Config ---
-tags = []
+tags = ['rnn']
 wandb_run_path = None
 train_again = False
 log_wandb = True
