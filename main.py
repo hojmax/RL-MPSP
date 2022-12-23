@@ -13,7 +13,7 @@ import sys
 
 
 # --- Config ---
-tags = ['LENGTH LSTM', 'authentic matrices']
+tags = ['count-container LSTM', 'authentic matrices']
 wandb_run_path = None
 train_again = False
 log_wandb = True
@@ -29,12 +29,12 @@ config = {
     'CONTAINER_EMBEDDING_SIZE': 8,
     'OUTPUT_HIDDEN': 256,
     'INTERNAL_HIDDEN': 32,
-    'LSTM_HIDDEN': 100,
+    'LSTM_HIDDEN': 64,
     # Training
     'TOTAL_TIMESTEPS': 3000000,
     '_ENT_COEF': 0,
-    '_LEARNING_RATE': 1e-4,
-    '_N_EPOCHS': 3,
+    '_LEARNING_RATE': 1.5e-4,
+    '_N_EPOCHS': 5,
     '_NORMALIZE_ADVANTAGE': True,
     '_N_STEPS': 2048,
     '_GAMMA': 0.99,

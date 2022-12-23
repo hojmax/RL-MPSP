@@ -11,9 +11,10 @@ class Transpose(nn.Module):
         return x.mT
 
 
-class LoadingListEncoder(nn.Module):
+class TransportationMatrixEncoder(nn.Module):
     def __init__(
         self,
+        n_ports,
         Container_embedding,
         container_embedding_size,
         hidden_size,
@@ -23,17 +24,22 @@ class LoadingListEncoder(nn.Module):
         self.Container_embedding = Container_embedding
         self.hidden_size = hidden_size
         self.lstm = nn.LSTM(
-            container_embedding_size,
+            # 1 for count, container_embedding_size for container
+            1 + container_embedding_size,
             hidden_size,
             device=device,
             batch_first=True
         )
+        # Looks like this:
+        # n-1, n-2, ..., 1, 0
+        # n-1, n-2, ..., 1, 0
+        # ...
+        # n-1, n-2, ..., 1, 0
+        self.containers_2d = torch.arange(n_ports).repeat(n_ports, 1).flip(1)
         self.device = device
 
-    def forward(self, loading_lists, loading_list_lengths):
-        loading_list_lengths = loading_list_lengths.to(self.device).long()
-        output = loading_lists.to(self.device).long()
-        batch_size = output.shape[0]
+    def forward(self, transportation_matrix):
+        batch_size = transportation_matrix.shape[0]
         lstm_last_hidden_layers = torch.zeros(
             batch_size,
             self.hidden_size,
@@ -42,11 +48,17 @@ class LoadingListEncoder(nn.Module):
 
         # Loop over the batch, extract the correct length and pass through LSTM
         for i in range(batch_size):
-            length = loading_list_lengths[i].item()
-            output_i = output[i, :length]
-            output_i = self.Container_embedding(output_i)
+            # Flip to get correct order (last container first)
+            sub_matrix = transportation_matrix[i].flip(1)
+            non_zero = sub_matrix.nonzero(as_tuple=True)
+            containers = self.containers_2d[non_zero]
+            containers = self.Container_embedding(containers)
+            # Maybe square^2 counts (future experiment)
+            counts = sub_matrix[non_zero].reshape(-1, 1)
+            sequence = torch.cat([counts, containers], dim=1)
+
             # LSTM initial hidden defaults to zeros when not provided
-            _, (hidden, cell) = self.lstm(output_i)
+            _, (hidden, cell) = self.lstm(sequence)
             lstm_last_hidden_layers[i] = hidden.squeeze(0)
 
         return lstm_last_hidden_layers
@@ -135,8 +147,9 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
                     nn.Flatten()
                 )
                 total_concat_size += container_embedding_size
-            elif key == 'loading_list':
-                extractors[key] = LoadingListEncoder(
+            elif key == 'transportation_matrix':
+                extractors[key] = TransportationMatrixEncoder(
+                    n_ports,
                     self.Container_embedding,
                     container_embedding_size,
                     lstm_hidden,
@@ -171,18 +184,8 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
         encoded_tensor_list = []
         debug_print = False
 
-        encoded_tensor_list.append(
-            self.extractors['loading_list'](
-                observations['loading_list'].to(self.device),
-                observations['loading_list_length'].to(self.device),
-            ).to(self.device)
-        )
-
         # self.extractors contain nn.Modules that do all the processing.
         for key, extractor in self.extractors.items():
-            if key == 'loading_list' or key == 'loading_list_length':
-                # We handle these separately
-                continue
             # We are given a (Batch, Height, Width) PyTorch tensor
             if debug_print:
                 print(key)
@@ -191,6 +194,7 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
                 extraction = extractor(observations[key].to(self.device))
                 print(extraction.shape)
                 print(extraction)
+
             encoded_tensor_list.append(
                 extractor(
                     observations[key].to(self.device)
