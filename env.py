@@ -182,12 +182,16 @@ class MPSPEnv(gym.Env):
 
         # Masking out empty columns
         # remove_mask = self.column_counts > 0
-        will_block = self._get_will_block()
-        remove_mask = np.logical_and(
-            self.column_counts > 0,
-            # Can only remove containers that will block
-            will_block
-        )
+        # will_block = self._get_will_block()
+        # remove_mask = np.logical_and(
+        #     self.column_counts > 0,
+        #     # Can only remove containers that will block
+        #     will_block
+        # )
+
+        remove_mask = self.column_counts < 0
+
+
 
         mask = np.concatenate((add_mask, remove_mask), dtype=np.int8)
 
