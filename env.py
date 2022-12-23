@@ -39,7 +39,7 @@ class MPSPEnv(gym.Env):
         }
 
         # Currently we can only add containers. So C and not 2 * C
-        self.action_space = spaces.Discrete(self.C)
+        self.action_space = spaces.Discrete(self.C * 2)
         bay_matrix_def = spaces.Box(
             low=0,
             high=self.N,
@@ -182,10 +182,16 @@ class MPSPEnv(gym.Env):
 
         # Masking out empty columns
         # remove_mask = self.column_counts > 0
+        will_block = self._get_will_block()
+        remove_mask = np.logical_and(
+            self.column_counts > 0,
+            # Can only remove containers that will block
+            will_block
+        )
 
-        # mask = np.concatenate((add_mask, remove_mask), dtype=np.int8)
+        mask = np.concatenate((add_mask, remove_mask), dtype=np.int8)
 
-        return add_mask
+        return mask
 
     def close(self):
         pass
@@ -587,13 +593,9 @@ class MPSPEnv(gym.Env):
             return np.min(non_zero_values)
 
     def _get_observation(self):
+        
         next_container = self._get_last_destination_container()
-
-        if next_container == -1:
-            # Last state, so no block
-            will_block = np.zeros(self.C, dtype=np.int32)
-        else:
-            will_block = self.min_value_per_column < next_container
+        will_block = self._get_will_block()
 
         return {
             'bay_matrix': self.bay_matrix,
@@ -602,6 +604,16 @@ class MPSPEnv(gym.Env):
             'port': [self.port],
             'will_block': will_block,
         }
+
+    def _get_will_block(self):
+        """Returns a vector of size C, where each entry is 1 if the next container will block, 0 otherwise"""
+        next_container = self._get_last_destination_container()
+
+        if next_container == -1:
+            # Last state, so no block
+            return np.zeros(self.C, dtype=np.int32)
+        else:
+            return self.min_value_per_column < next_container
 
     def _get_mixed_distance_transportation_matrix(self, N):
         """Generates a feasible transportation matrix (mixed distance)"""
