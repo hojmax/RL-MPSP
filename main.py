@@ -13,7 +13,7 @@ import sys
 
 
 # --- Config ---
-tags = ['LSTM', 'authentic matrices']
+tags = ['LENGTH LSTM', 'authentic matrices']
 wandb_run_path = None
 train_again = False
 log_wandb = False
