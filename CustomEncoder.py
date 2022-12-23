@@ -30,34 +30,26 @@ class LoadingListEncoder(nn.Module):
         )
         self.device = device
 
-    def forward(self, loading_lists):
+    def forward(self, loading_lists, loading_list_lengths):
+        loading_list_lengths = loading_list_lengths.to(self.device).long()
         output = loading_lists.to(self.device).long()
         batch_size = output.shape[0]
-        output = self.Container_embedding(output)
-
-        # Pass through LSTM
-        hidden = self.init_hidden(batch_size)
-        _, hidden = self.lstm(output, hidden)
-
-        # Return the last hidden states
-        return hidden[0].squeeze(0)
-
-    def init_hidden(self, batch_size):
-        # LSTM has two hidden states, one for hidden and one for cell
-        return (
-            torch.zeros(
-                1,
-                batch_size,
-                self.hidden_size,
-                device=self.device
-            ),
-            torch.zeros(
-                1,
-                batch_size,
-                self.hidden_size,
-                device=self.device
-            )
+        lstm_last_hidden_layers = torch.zeros(
+            batch_size,
+            self.hidden_size,
+            device=self.device
         )
+
+        # Loop over the batch, extract the correct length and pass through LSTM
+        for i in range(batch_size):
+            length = loading_list_lengths[i].item()
+            output_i = output[i, :length]
+            output_i = self.Container_embedding(output_i)
+            # LSTM initial hidden defaults to zeros when not provided
+            _, (hidden, cell) = self.lstm(output_i)
+            lstm_last_hidden_layers[i] = hidden.squeeze(0)
+
+        return lstm_last_hidden_layers
 
 
 class ToLong(nn.Module):
@@ -179,8 +171,18 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
         encoded_tensor_list = []
         debug_print = False
 
+        encoded_tensor_list.append(
+            self.extractors['loading_list'](
+                observations['loading_list'].to(self.device),
+                observations['loading_list_length'].to(self.device),
+            ).to(self.device)
+        )
+
         # self.extractors contain nn.Modules that do all the processing.
         for key, extractor in self.extractors.items():
+            if key == 'loading_list' or key == 'loading_list_length':
+                # We handle these separately
+                continue
             # We are given a (Batch, Height, Width) PyTorch tensor
             if debug_print:
                 print(key)

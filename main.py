@@ -29,7 +29,7 @@ config = {
     'CONTAINER_EMBEDDING_SIZE': 8,
     'OUTPUT_HIDDEN': 256,
     'INTERNAL_HIDDEN': 32,
-    'LSTM_HIDDEN': 64,
+    'LSTM_HIDDEN': 100,
     # Training
     'TOTAL_TIMESTEPS': 3000000,
     '_ENT_COEF': 0,

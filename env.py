@@ -72,12 +72,19 @@ class MPSPEnv(gym.Env):
             shape=(self.C*self.R*(self.N-1),),
             dtype=np.int32
         )
+        loading_list_length_def = spaces.Box(
+            low=0,
+            high=self.C*self.R*(self.N-1),
+            shape=(1,),
+            dtype=np.int32
+        )
         self.observation_space = spaces.Dict({
             'bay_matrix': bay_matrix_def,
             'container': container_def,
             'port': port_def,
             'will_block': will_block_def,
             'loading_list': loading_list_def,
+            'loading_list_length': loading_list_length_def,
         })
         self.transportation_matrix = None
         self.bay_matrix = None
@@ -624,6 +631,7 @@ class MPSPEnv(gym.Env):
             'port': [self.port],
             'will_block': will_block,
             'loading_list': padded_loading_list,
+            'loading_list_length': [len(self.loading_list)],
         }
 
     def _get_mixed_distance_transportation_matrix(self, N):
