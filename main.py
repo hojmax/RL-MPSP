@@ -17,7 +17,7 @@ tags = ['count-container LSTM', 'authentic matrices', 'basic env']
 wandb_run_path = None
 train_again = False
 # 0 = no logging, 1 = log to wandb
-log_wandb = bool(sys.argv[4]) if len(sys.argv) > 4 else True
+log_wandb = bool(sys.argv[4]) if len(sys.argv) > 4 else False
 
 config = {
     # Environment
