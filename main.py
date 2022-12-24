@@ -13,9 +13,9 @@ import sys
 
 
 # --- Config ---
-tags = ['tanh-nonlinearity', 'tetris']
+tags = ['without-transportation', 'authentic matrices']
 wandb_run_path = None
-train_again = False
+train_again = True
 log_wandb = True
 
 config = {
@@ -30,7 +30,7 @@ config = {
     'OUTPUT_HIDDEN': 256,
     'INTERNAL_HIDDEN': 32,
     # Training
-    'TOTAL_TIMESTEPS': 3e6,
+    'TOTAL_TIMESTEPS': 3000000,
     '_ENT_COEF': 0,
     '_LEARNING_RATE': 1e-4,
     '_N_EPOCHS': 3,
