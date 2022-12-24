@@ -39,7 +39,8 @@ class TransportationMatrixEncoder(nn.Module):
         self.device = device
 
     def forward(self, transportation_matrix):
-        transportation_matrix.to(self.device)
+        # To device
+        transportation_matrix = transportation_matrix.to(self.device)
         batch_size = transportation_matrix.shape[0]
         lstm_last_hidden_layers = torch.zeros(
             batch_size,
