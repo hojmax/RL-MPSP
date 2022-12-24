@@ -50,7 +50,9 @@ class TransportationMatrixEncoder(nn.Module):
         for i in range(batch_size):
             # Flip to get correct order (last container first)
             sub_matrix = transportation_matrix[i].flip(1)
+            print('sub_matrix', sub_matrix.device)
             non_zero = sub_matrix.nonzero(as_tuple=True)
+            print('non_zero', non_zero[0].device)
             containers = self.containers_2d[non_zero]
 
             sub_matrix = sub_matrix.to(self.device)
