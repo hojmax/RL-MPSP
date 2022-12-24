@@ -35,8 +35,13 @@ class TransportationMatrixEncoder(nn.Module):
         # n-1, n-2, ..., 1, 0
         # ...
         # n-1, n-2, ..., 1, 0
-        self.containers_2d = torch.arange(n_ports).repeat(n_ports, 1).flip(1)
         self.device = device
+        self.containers_2d = (
+            torch.arange(n_ports)
+            .repeat(n_ports, 1)
+            .flip(1)
+            .to(device)
+        )
 
     def forward(self, transportation_matrix):
         batch_size = transportation_matrix.shape[0]
@@ -50,14 +55,8 @@ class TransportationMatrixEncoder(nn.Module):
         for i in range(batch_size):
             # Flip to get correct order (last container first)
             sub_matrix = transportation_matrix[i].flip(1)
-            print('sub_matrix', sub_matrix.device)
             non_zero = sub_matrix.nonzero(as_tuple=True)
-            print('non_zero', non_zero[0].device)
             containers = self.containers_2d[non_zero]
-
-            sub_matrix = sub_matrix.to(self.device)
-            containers = containers.to(self.device)
-
             containers = self.Container_embedding(containers)
             # Square the counts to make them more significant for the LSTM
             counts = torch.square(sub_matrix[non_zero].reshape(-1, 1))
