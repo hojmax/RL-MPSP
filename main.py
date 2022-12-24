@@ -13,10 +13,10 @@ import sys
 
 
 # --- Config ---
-tags = ['count-container LSTM', 'authentic matrices']
+tags = ['count-container LSTM', 'authentic matrices', 'remove when blocking']
 wandb_run_path = None
 train_again = False
-log_wandb = True
+log_wandb = False
 
 config = {
     # Environment
@@ -26,10 +26,10 @@ config = {
     # Model
     'PI_LAYER_SIZES': [64, 64],
     'VF_LAYER_SIZES': [64, 64],
-    'CONTAINER_EMBEDDING_SIZE': 8,
+    'CONTAINER_EMBEDDING_SIZE': 16,
     'OUTPUT_HIDDEN': 256,
     'INTERNAL_HIDDEN': 32,
-    'LSTM_HIDDEN': 64,
+    'LSTM_HIDDEN': 128,
     # Training
     'TOTAL_TIMESTEPS': 3000000,
     '_ENT_COEF': 0,

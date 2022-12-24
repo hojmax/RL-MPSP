@@ -37,33 +37,31 @@ class MPSPEnv(gym.Env):
                 "rgb_array",
             ],
         }
-
-        # Currently we can only add containers. So C and not 2 * C
-        self.action_space = spaces.Discrete(self.C)
+        self.action_space = spaces.Discrete(2 * self.C)
         bay_matrix_def = spaces.Box(
             low=0,
             high=self.N-1,
             shape=(self.R, self.C),
             dtype=np.int32
         )
-        container_def = spaces.Box(
-            low=0,
-            high=self.N-1,
-            shape=(1,),
-            dtype=np.int32
-        )
-        port_def = spaces.Box(
-            low=0,
-            high=self.N-1,
-            shape=(1,),
-            dtype=np.int32
-        )
-        will_block_def = spaces.Box(
-            low=0,
-            high=1,
-            shape=(self.C,),
-            dtype=np.int32
-        )
+        # container_def = spaces.Box(
+        #     low=0,
+        #     high=self.N-1,
+        #     shape=(1,),
+        #     dtype=np.int32
+        # )
+        # port_def = spaces.Box(
+        #     low=0,
+        #     high=self.N-1,
+        #     shape=(1,),
+        #     dtype=np.int32
+        # )
+        # will_block_def = spaces.Box(
+        #     low=0,
+        #     high=1,
+        #     shape=(self.C,),
+        #     dtype=np.int32
+        # )
         # loading_list_def = spaces.Box(
         #     low=0,
         #     high=self.N-1,
@@ -86,9 +84,9 @@ class MPSPEnv(gym.Env):
         )
         self.observation_space = spaces.Dict({
             'bay_matrix': bay_matrix_def,
-            'container': container_def,
-            'port': port_def,
-            'will_block': will_block_def,
+            # 'container': container_def,
+            # 'port': port_def,
+            # 'will_block': will_block_def,
             # 'loading_list': loading_list_def,
             # 'loading_list_length': loading_list_length_def,
             'transportation_matrix': transportation_matrix_def,
@@ -198,12 +196,17 @@ class MPSPEnv(gym.Env):
                 np.arange(self.C) < self.virtual_C
             )
 
-        # Masking out empty columns
-        # remove_mask = self.column_counts > 0
+        # will_block = self._get_will_block()
+        # remove_mask = np.logical_and(
+            # Masking out empty columns
+            # self.column_counts > 0,
+            # But only allowing removes if the container will block
+            # will_block
+        # )
+        remove_mask = self.column_counts > 0
+        mask = np.concatenate((add_mask, remove_mask), dtype=np.int8)
 
-        # mask = np.concatenate((add_mask, remove_mask), dtype=np.int8)
-
-        return add_mask
+        return mask
 
     def close(self):
         pass
@@ -617,14 +620,19 @@ class MPSPEnv(gym.Env):
         else:
             return np.min(non_zero_values)
 
-    def _get_observation(self):
-        next_container = self._get_last_destination_container()
+    # def _get_will_block(self):
+    #     next_container = self._get_last_destination_container()
+    #     will_block = self.min_value_per_column < next_container
+    #     return will_block
 
-        if next_container == -1:
-            # Last state, so no block
-            will_block = np.zeros(self.C, dtype=np.int32)
-        else:
-            will_block = self.min_value_per_column < next_container
+    def _get_observation(self):
+        # next_container = self._get_last_destination_container()
+
+        # if next_container == -1:
+        #     # Last state, so no block
+        #     will_block = np.zeros(self.C, dtype=np.int32)
+        # else:
+        #     will_block = self.min_value_per_column < next_container
 
         # padded_loading_list = np.pad(
         #     self.loading_list,
@@ -635,9 +643,9 @@ class MPSPEnv(gym.Env):
 
         return {
             'bay_matrix': self.bay_matrix,
-            'container': [next_container],
-            'port': [self.port],
-            'will_block': will_block,
+            # 'container': [next_container],
+            # 'port': [self.port],
+            # 'will_block': will_block,
             'transportation_matrix': self.transportation_matrix,
             # 'loading_list': padded_loading_list,
             # 'loading_list_length': [len(self.loading_list)],
@@ -657,7 +665,7 @@ class MPSPEnv(gym.Env):
 
     def _get_short_distance_transportation_matrix(self, N):
         """Generates a feasible transportation matrix (short distance)"""
-        
+
         ordering = []
 
         for i in range(N-1):

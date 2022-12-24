@@ -53,8 +53,8 @@ class TransportationMatrixEncoder(nn.Module):
             non_zero = sub_matrix.nonzero(as_tuple=True)
             containers = self.containers_2d[non_zero]
             containers = self.Container_embedding(containers)
-            # Maybe square^2 counts (future experiment)
-            counts = sub_matrix[non_zero].reshape(-1, 1)
+            # Square the counts to make them more significant for the LSTM
+            counts = torch.square(sub_matrix[non_zero].reshape(-1, 1))
             sequence = torch.cat([counts, containers], dim=1)
 
             # LSTM initial hidden defaults to zeros when not provided
@@ -129,24 +129,24 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
                     nn.Flatten()
                 )
                 total_concat_size += cols * internal_hidden
-            elif key == 'container':
-                extractors[key] = nn.Sequential(
-                    # Long is required for embedding
-                    ToLong(),
-                    self.Container_embedding,
-                    nn.Tanh(),
-                    nn.Flatten()
-                )
-                total_concat_size += container_embedding_size
-            elif key == 'port':
-                extractors[key] = nn.Sequential(
-                    # Long is required for embedding
-                    ToLong(),
-                    self.Container_embedding,
-                    nn.Tanh(),
-                    nn.Flatten()
-                )
-                total_concat_size += container_embedding_size
+            # elif key == 'container':
+            #     extractors[key] = nn.Sequential(
+            #         # Long is required for embedding
+            #         ToLong(),
+            #         self.Container_embedding,
+            #         nn.Tanh(),
+            #         nn.Flatten()
+            #     )
+            #     total_concat_size += container_embedding_size
+            # elif key == 'port':
+            #     extractors[key] = nn.Sequential(
+            #         # Long is required for embedding
+            #         ToLong(),
+            #         self.Container_embedding,
+            #         nn.Tanh(),
+            #         nn.Flatten()
+            #     )
+            #     total_concat_size += container_embedding_size
             elif key == 'transportation_matrix':
                 extractors[key] = TransportationMatrixEncoder(
                     n_ports,
@@ -156,17 +156,17 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
                     device=device
                 )
                 total_concat_size += lstm_hidden
-            elif key == 'will_block':
-                extractors[key] = nn.Sequential(
-                    ToFloat(),
-                    nn.Linear(
-                        subspace.shape[0],
-                        internal_hidden,
-                        device=device
-                    ),
-                    nn.Tanh(),
-                )
-                total_concat_size += internal_hidden
+            # elif key == 'will_block':
+            #     extractors[key] = nn.Sequential(
+            #         ToFloat(),
+            #         nn.Linear(
+            #             subspace.shape[0],
+            #             internal_hidden,
+            #             device=device
+            #         ),
+            #         nn.Tanh(),
+            #     )
+            #     total_concat_size += internal_hidden
 
         self.extractors = nn.ModuleDict(extractors)
 
