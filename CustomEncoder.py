@@ -3,14 +3,6 @@ import torch.nn as nn
 import torch
 
 
-class Transpose(nn.Module):
-    def __init__(self):
-        super().__init__()
-
-    def forward(self, x):
-        return x.mT
-
-
 class LoadingListEncoder(nn.Module):
     def __init__(
         self,
@@ -31,25 +23,18 @@ class LoadingListEncoder(nn.Module):
         self.device = device
 
     def forward(self, loading_lists, loading_list_lengths):
-        loading_list_lengths = loading_list_lengths.to(self.device).long()
-        output = loading_lists.to(self.device).long()
-        batch_size = output.shape[0]
-        lstm_last_hidden_layers = torch.zeros(
-            batch_size,
-            self.hidden_size,
-            device=self.device
+        loading_lists = loading_lists.to(self.device)
+
+        packed_sequence = nn.utils.rnn.pack_padded_sequence(
+            self.Container_embedding(loading_lists.long()),
+            loading_list_lengths.flatten(),
+            batch_first=True,
+            enforce_sorted=False
         )
 
-        # Loop over the batch, extract the correct length and pass through LSTM
-        for i in range(batch_size):
-            length = loading_list_lengths[i].item()
-            output_i = output[i, :length]
-            output_i = self.Container_embedding(output_i)
-            # LSTM initial hidden defaults to zeros when not provided
-            _, (hidden, cell) = self.lstm(output_i)
-            lstm_last_hidden_layers[i] = hidden.squeeze(0)
+        _, (hidden, cell) = self.lstm(packed_sequence)
 
-        return lstm_last_hidden_layers
+        return hidden.squeeze(0)
 
 
 class ToLong(nn.Module):
@@ -66,6 +51,14 @@ class ToFloat(nn.Module):
 
     def forward(self, x):
         return x.float()
+
+
+class Transpose(nn.Module):
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, x):
+        return x.mT
 
 
 class CustomCombinedExtractor(BaseFeaturesExtractor):
