@@ -39,7 +39,6 @@ class TransportationMatrixEncoder(nn.Module):
         self.device = device
 
     def forward(self, transportation_matrix):
-        transportation_matrix = transportation_matrix.to(self.device)
         batch_size = transportation_matrix.shape[0]
         lstm_last_hidden_layers = torch.zeros(
             batch_size,
@@ -53,7 +52,10 @@ class TransportationMatrixEncoder(nn.Module):
             sub_matrix = transportation_matrix[i].flip(1)
             non_zero = sub_matrix.nonzero(as_tuple=True)
             containers = self.containers_2d[non_zero]
+
+            sub_matrix = sub_matrix.to(self.device)
             containers = containers.to(self.device)
+
             containers = self.Container_embedding(containers)
             # Square the counts to make them more significant for the LSTM
             counts = torch.square(sub_matrix[non_zero].reshape(-1, 1))
