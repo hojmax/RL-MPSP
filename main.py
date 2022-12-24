@@ -16,7 +16,7 @@ import sys
 tags = ['LENGTH LSTM', 'authentic matrices']
 wandb_run_path = None
 train_again = False
-log_wandb = False
+log_wandb = int(sys.argv[4]) if len(sys.argv) > 4 else False
 
 config = {
     # Environment

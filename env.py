@@ -80,7 +80,7 @@ class MPSPEnv(gym.Env):
         )
         self.observation_space = spaces.Dict({
             'bay_matrix': bay_matrix_def,
-            'container': container_def,
+            # 'container': container_def,
             'port': port_def,
             'will_block': will_block_def,
             'loading_list': loading_list_def,
@@ -627,7 +627,7 @@ class MPSPEnv(gym.Env):
 
         return {
             'bay_matrix': self.bay_matrix,
-            'container': [next_container],
+            # 'container': [next_container],
             'port': [self.port],
             'will_block': will_block,
             'loading_list': padded_loading_list,

@@ -27,7 +27,7 @@ class LoadingListEncoder(nn.Module):
 
         packed_sequence = nn.utils.rnn.pack_padded_sequence(
             self.Container_embedding(loading_lists.long()),
-            loading_list_lengths.flatten(),
+            loading_list_lengths.flatten().cpu(),
             batch_first=True,
             enforce_sorted=False
         )
@@ -110,15 +110,15 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
                     nn.Flatten()
                 )
                 total_concat_size += cols * internal_hidden
-            elif key == 'container':
-                extractors[key] = nn.Sequential(
-                    # Long is required for embedding
-                    ToLong(),
-                    self.Container_embedding,
-                    nn.Tanh(),
-                    nn.Flatten()
-                )
-                total_concat_size += container_embedding_size
+            # elif key == 'container':
+            #     extractors[key] = nn.Sequential(
+            #         # Long is required for embedding
+            #         ToLong(),
+            #         self.Container_embedding,
+            #         nn.Tanh(),
+            #         nn.Flatten()
+            #     )
+            #     total_concat_size += container_embedding_size
             elif key == 'port':
                 extractors[key] = nn.Sequential(
                     # Long is required for embedding
