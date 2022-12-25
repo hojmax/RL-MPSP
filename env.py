@@ -42,25 +42,13 @@ class MPSPEnv(gym.Env):
         self.action_space = spaces.Discrete(self.C)
         bay_matrix_def = spaces.Box(
             low=0,
-            high=self.N,
+            high=self.N-1,
             shape=(self.R, self.C),
-            dtype=np.int32
-        )
-        container_def = spaces.Box(
-            low=0,
-            high=self.N,
-            shape=(1,),
-            dtype=np.int32
-        )
-        transportation_matrix_def = spaces.Box(
-            low=0,
-            high=np.iinfo(np.int32).max,
-            shape=(self.N, self.N),
             dtype=np.int32
         )
         port_def = spaces.Box(
             low=0,
-            high=self.N,
+            high=self.N-1,
             shape=(1,),
             dtype=np.int32
         )
@@ -70,12 +58,27 @@ class MPSPEnv(gym.Env):
             shape=(self.C,),
             dtype=np.int32
         )
+        loading_list_def = spaces.Box(
+            low=0,
+            # The count can be at most be C*R
+            high=self.C*self.R,
+            # Has length n(n-1)/2 because we only need to store the upper triangle
+            # Has width 2 because we need to store the count and destination
+            shape=(self.N*(self.N-1) // 2, 2),
+            dtype=np.int32
+        )
+        loading_list_length_def = spaces.Box(
+            low=0,
+            high=self.N*(self.N-1) / 2,
+            shape=(1,),
+            dtype=np.int32
+        )
         self.observation_space = spaces.Dict({
             'bay_matrix': bay_matrix_def,
-            'container': container_def,
-            'transportation_matrix': transportation_matrix_def,
             'port': port_def,
-            'will_block': will_block_def
+            'will_block': will_block_def,
+            'loading_list': loading_list_def,
+            'loading_list_length': loading_list_length_def,
         })
         self.transportation_matrix = None
         self.bay_matrix = None
@@ -102,10 +105,12 @@ class MPSPEnv(gym.Env):
     def reset(self, transportation_matrix=None, seed=None):
         """Reset the state of the environment to an initial state"""
         self.seed(seed)
+        self.loading_list = []
         self.transportation_matrix = (
             self._get_mixed_distance_transportation_matrix(self.N)
             if transportation_matrix is None else transportation_matrix
         )
+        self._fill_loading_list()
         self.bay_matrix = np.zeros((self.R, self.C), dtype=np.int32)
         self.column_counts = np.zeros(self.C, dtype=np.int32)
         # Initialize to max values
@@ -200,6 +205,8 @@ class MPSPEnv(gym.Env):
         print(self.column_counts)
         print('Min value per column:')
         print(self.min_value_per_column)
+        print('Loading list:')
+        print(self.loading_list)
 
     def render(self, mode='human'):
 
@@ -457,22 +464,18 @@ class MPSPEnv(gym.Env):
         text_rect = text_surface.get_rect(center=pos)
         self.surface.blit(text_surface, text_rect)
 
-    def _get_last_destination_container(self):
-
-        container = -1
-        for h in range(self.N-1, self.port, -1):
-            if self.transportation_matrix[self.port, h] > 0:
-                container = h
-                break
-
-        return container
-
     def _remove_container(self, i, j):
         """Removes container from bay and returns delta reward"""
 
         # Update state
         container = self.bay_matrix[i, j]
         self.bay_matrix[i, j] = 0
+
+        # Add to beginning of loading list
+        if self.loading_list[0][1] == container:
+            self.loading_list[0][0] += 1
+        else:
+            self.loading_list.insert(0, [1, container])
 
         # Check if min_value_per_column needs to be checked/updated
         if container == self.min_value_per_column[j]:
@@ -491,7 +494,7 @@ class MPSPEnv(gym.Env):
         self.column_counts[j] += 1
 
         # Find last destination container
-        container = self._get_last_destination_container()
+        container = self.loading_list[0][1]
 
         assert container != -1, "No containers to offload"
 
@@ -504,6 +507,14 @@ class MPSPEnv(gym.Env):
         # Update state
         self.bay_matrix[i, j] = container
         self.transportation_matrix[self.port, container] -= 1
+
+        # Either:
+        # Remove the first container in the loading list
+        # Decrease the count of the first container in the loading list
+        if self.loading_list[0][0] == 1:
+            self.loading_list.pop(0)
+        else:
+            self.loading_list[0][0] -= 1
 
         # Check if container is blocking (there exists a container in the same column with a higher destination)
         # If so, penalize
@@ -571,10 +582,14 @@ class MPSPEnv(gym.Env):
                 self.bay_matrix[i, j] = 0
                 self.column_counts[j] -= 1
 
-        # Must rebuild min_value_per_column, as we dont know which containers were removed
+        # Rebuild min_value_per_column, as we dont know which containers were removed
         self.min_value_per_column = np.array([
             self.get_min_in_column(i) for i in range(self.C)
         ])
+
+        # Rebuild load list
+        self.loading_list = []
+        self._fill_loading_list()
 
         return n_blocking_containers
 
@@ -587,20 +602,32 @@ class MPSPEnv(gym.Env):
             return np.min(non_zero_values)
 
     def _get_observation(self):
-        next_container = self._get_last_destination_container()
-
-        if next_container == -1:
+        if len(self.loading_list) == 0:
             # Last state, so no block
             will_block = np.zeros(self.C, dtype=np.int32)
+            padded_loading_list = np.zeros(
+                self.observation_space['loading_list'].shape,
+            )
         else:
+            next_container = self.loading_list[0][1]
             will_block = self.min_value_per_column < next_container
+            padded_loading_list = np.pad(
+                self.loading_list,
+                # Pad with zeros to correct shape
+                (
+                    (0, self.observation_space['loading_list'].shape[0] - \
+                     len(self.loading_list)),
+                    (0, 0)
+                ),
+                'constant'
+            )
 
         return {
             'bay_matrix': self.bay_matrix,
-            'container': [next_container],
-            'transportation_matrix': self.transportation_matrix,
             'port': [self.port],
             'will_block': will_block,
+            'loading_list': padded_loading_list,
+            'loading_list_length': [len(self.loading_list)],
         }
 
     def _get_mixed_distance_transportation_matrix(self, N):
@@ -629,6 +656,18 @@ class MPSPEnv(gym.Env):
             ordering.append(np.arange(N-1, i, -1))
 
         return self._get_transportation_matrix(N, ordering)
+
+    def _fill_loading_list(self):
+        """Create loading list from transportation matrix"""
+        for i in range(self.N-1):
+            for j in range(self.N-1, i, -1):
+                count = self.transportation_matrix[i, j]
+
+                if count == 0:
+                    continue
+
+                container = j
+                self.loading_list.append([count, container])
 
     def _get_transportation_matrix(self, N, ordering):
         """Generates a feasible transportation matrix (short distance)
