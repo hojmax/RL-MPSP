@@ -16,6 +16,38 @@ class text_type(Enum):
     SUBHEADLINE = 28
 
 
+class NoRemoveWrapper(gym.Wrapper):
+    def __init__(self, env):
+        super().__init__(env)
+        self.logic_mask = np.concatenate(
+            (
+                np.ones(self.env.C),
+                np.zeros(self.env.C)
+            )
+        )
+
+    def action_masks(self):
+        mask = self.env.action_masks()
+        mask = np.logical_and(mask, self.logic_mask)
+        return mask
+
+
+class StrategicRemoveWrapper(gym.Wrapper):
+    def __init__(self, env):
+        super().__init__(env)
+        self.ones = np.ones(self.env.C)
+
+    def action_masks(self):
+        next_container = self.env.loading_list[0][1]
+        will_block = self.env.min_value_per_column < next_container
+        logical_mask = np.concatenate(
+            (self.ones, will_block),
+        )
+        env_mask = self.env.action_masks()
+        mask = np.logical_and(env_mask, logical_mask)
+        return mask
+
+
 class MPSPEnv(gym.Env):
     """Environment for the Multi Port Shipping Problem"""
 
@@ -38,8 +70,7 @@ class MPSPEnv(gym.Env):
             ],
         }
 
-        # Currently we can only add containers. So C and not 2 * C
-        self.action_space = spaces.Discrete(self.C)
+        self.action_space = spaces.Discrete(2 * self.C)
         bay_matrix_def = spaces.Box(
             low=0,
             high=self.N-1,
@@ -186,11 +217,11 @@ class MPSPEnv(gym.Env):
             )
 
         # Masking out empty columns
-        # remove_mask = self.column_counts > 0
+        remove_mask = self.column_counts > 0
 
-        # mask = np.concatenate((add_mask, remove_mask), dtype=np.int8)
+        mask = np.concatenate((add_mask, remove_mask), dtype=np.int8)
 
-        return add_mask
+        return mask
 
     def close(self):
         pass

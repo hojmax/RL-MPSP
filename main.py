@@ -3,7 +3,7 @@ from wandb.integration.sb3 import WandbCallback
 from sb3_contrib.ppo_mask import MaskablePPO
 from benchmark import get_benchmarking_data
 from CustomEncoder import CustomCombinedExtractor
-from env import MPSPEnv
+from env import MPSPEnv, NoRemoveWrapper, StrategicRemoveWrapper
 from tqdm import tqdm
 import numpy as np
 import torch
@@ -31,7 +31,7 @@ config = {
     'INTERNAL_HIDDEN': 32,
     'LSTM_HIDDEN': 100,
     # Training
-    'TOTAL_TIMESTEPS': 3000000,
+    'TOTAL_TIMESTEPS': 100000,
     '_ENT_COEF': 0,
     '_LEARNING_RATE': 1e-4,
     '_N_EPOCHS': 3,
@@ -47,16 +47,6 @@ wandb.login(
 )
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
-env = make_vec_env(
-    lambda: MPSPEnv(
-        config['ROWS'],
-        config['COLUMNS'],
-        config['N_PORTS']
-    ),
-    # Take cores from command line, default to 8
-    n_envs=int(sys.argv[1]) if len(sys.argv) > 1 else 8,
-)
 
 policy_kwargs = {
     'activation_fn': torch.nn.Tanh,
@@ -89,16 +79,54 @@ if create_new_run:
         tags=tags
     )
 
+# Take cores from command line, default to 8
+n_envs = int(sys.argv[1]) if len(sys.argv) > 1 else 8
+
+base_env = make_vec_env(
+    lambda: MPSPEnv(
+        config['ROWS'],
+        config['COLUMNS'],
+        config['N_PORTS']
+    ),
+    n_envs=n_envs,
+)
+no_remove_env = make_vec_env(
+    lambda: NoRemoveWrapper(MPSPEnv(
+        config['ROWS'],
+        config['COLUMNS'],
+        config['N_PORTS']
+    )),
+    n_envs=n_envs,
+)
+strategic_remove_env = make_vec_env(
+    lambda: StrategicRemoveWrapper(MPSPEnv(
+        config['ROWS'],
+        config['COLUMNS'],
+        config['N_PORTS']
+    )),
+    n_envs=n_envs,
+)
+
 if wandb_run_path:
     model_file = wandb.restore('model.zip', run_path=wandb_run_path)
     model = MaskablePPO.load(
         model_file.name,
-        env=env
+        env=base_env,
     )
+    if train_again:
+        print('Fine-tuning...')
+        model.learn(
+            total_timesteps=config['TOTAL_TIMESTEPS'] // 3,
+            callback=WandbCallback(
+                model_save_path=f"models/{run.id}",
+            ) if create_new_run else None,
+            progress_bar=True,
+        )
 else:
     model = MaskablePPO(
         policy='MultiInputPolicy',
-        env=env,
+        # Starting with no remove
+        env=no_remove_env,
         verbose=0,
         tensorboard_log=f"runs/{run.id}" if create_new_run else None,
         policy_kwargs=policy_kwargs,
@@ -110,13 +138,29 @@ else:
         gamma=config['_GAMMA'],
         device=device,
     )
-
-if train_again or not wandb_run_path:
+    print('Training with no remove...')
     model.learn(
-        total_timesteps=config['TOTAL_TIMESTEPS'],
+        total_timesteps=config['TOTAL_TIMESTEPS'] // 3,
         callback=WandbCallback(
             model_save_path=f"models/{run.id}",
-            model_save_freq=config['TOTAL_TIMESTEPS'] // 4,
+        ) if create_new_run else None,
+        progress_bar=True,
+    )
+    model.set_env(strategic_remove_env)
+    print('Training with strategic remove...')
+    model.learn(
+        total_timesteps=config['TOTAL_TIMESTEPS'] // 3,
+        callback=WandbCallback(
+            model_save_path=f"models/{run.id}",
+        ) if create_new_run else None,
+        progress_bar=True,
+    )
+    model.set_env(base_env)
+    print('Training with base remove...')
+    model.learn(
+        total_timesteps=config['TOTAL_TIMESTEPS'] // 3,
+        callback=WandbCallback(
+            model_save_path=f"models/{run.id}",
         ) if create_new_run else None,
         progress_bar=True,
     )
