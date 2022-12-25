@@ -52,7 +52,7 @@ And run the python script:
 !python main.py [n_processes] [wandb_api_key] [wandb_note] [should_log_wandb] 0
 ```
 
-The zero at the makes sure that the script does not try to show a progress bar, since this is not supported on the cluster.
+The last zero makes sure that the script does not try to show a progress bar, since this is not supported on the cluster.
 
 See [Hendrix documentation](https://diku-dk.github.io/wiki/slurm-cluster) for more information.
 
