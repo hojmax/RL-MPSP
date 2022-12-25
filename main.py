@@ -28,7 +28,7 @@ config = {
     'PI_LAYER_SIZES': [128, 128],
     'VF_LAYER_SIZES': [128, 128],
     'CONTAINER_EMBEDDING_SIZE': 8,
-    'OUTPUT_HIDDEN': 256,
+    'OUTPUT_HIDDEN': 512,
     'INTERNAL_HIDDEN': 64,
     'LSTM_HIDDEN': 100,
     # Training

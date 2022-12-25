@@ -116,15 +116,6 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
                     nn.Flatten()
                 )
                 total_concat_size += cols * internal_hidden
-            # elif key == 'container':
-            #     extractors[key] = nn.Sequential(
-            #         # Long is required for embedding
-            #         ToLong(),
-            #         self.Container_embedding,
-            #         nn.Tanh(),
-            #         nn.Flatten()
-            #     )
-            #     total_concat_size += container_embedding_size
             elif key == 'port':
                 extractors[key] = nn.Sequential(
                     # Long is required for embedding
