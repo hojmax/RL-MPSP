@@ -78,6 +78,7 @@ if create_new_run:
         monitor_gym=True,
         tags=tags
     )
+    # wandb.tensorboard.patch(root_logdir="wandb")
 
 # Take cores from command line, default to 8
 n_envs = int(sys.argv[1]) if len(sys.argv) > 1 else 8

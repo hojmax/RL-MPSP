@@ -1,16 +1,11 @@
 !/bin/bash
-#The partition is the queue you want to run on. standard is gpu and can be ommitted.
-SBATCH -p gpu
-SBATCH --job-name=MyJob
-#number of independent tasks we are going to start in this script
-SBATCH --ntasks=1
-#number of cpus we want to allocate for each program
-SBATCH --cpus-per-task=4
-#We expect that our program should not run longer than 2 days
+# we run on the gpu partition and we allocate 2 titanx gpus
+SBATCH -p gpu --gres=gpu:2
+#We expect that our program should not run longer than 4 hours
 #Note that a program will be killed once it exceeds this time!
-SBATCH --time=2-00:00:00
-#Skipping many options! see man sbatch
-# From here on, we can start our program
+SBATCH --time=4:00:00
 
+#your script, in this case: write the hostname and the ids of the chosen gpus.
+hostname
 # $1 is your wandb api key as a terminal argument
 python main.py 4 $1 1
