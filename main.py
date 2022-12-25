@@ -17,7 +17,7 @@ tags = ['LENGTH LSTM', 'authentic matrices']
 wandb_run_path = None
 train_again = False
 log_wandb = int(sys.argv[4]) if len(sys.argv) > 4 else True
-show_progress = int(sys.argv[4]) if len(sys.argv) > 5 else True
+show_progress = int(sys.argv[5]) if len(sys.argv) > 5 else True
 
 config = {
     # Environment

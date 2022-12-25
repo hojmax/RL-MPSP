@@ -37,17 +37,22 @@ In the final block you add:
 The first time you enter the cluster you should download the repos and install the required packages:
 
 ```bash
-git clone https://github.com/hojmax/RL-MPSP.git && cd ./RL-MPSP && git clone https://[git_token]@github.com/hojmax/rl-mpsp-benchmark.git && module load anaconda3/5.3.1  && pip install -r requirements.txt
+git clone https://github.com/hojmax/RL-MPSP.git && cd ./RL-MPSP && git clone https://[git_token]@github.com/hojmax/rl-mpsp-benchmark.git && module load python/3.9.9 && pip install -r requirements.txt
 ```
 
-You can then request resources:
+You can then request resources (4 hours in this case):
+
 ```bash
-srun -p gpu --pty --time=00:30:00 --gres gpu:1 bash 
+srun -p gpu --pty --time=04:00:00 --gres gpu:1 bash
 ```
+
 And run the python script:
+
 ```bash
-!python main.py [n_processes] [wandb_api_key] [wandb_note] [should_log_wandb]
+!python main.py [n_processes] [wandb_api_key] [wandb_note] [should_log_wandb] 0
 ```
+
+The zero at the makes sure that the script does not try to show a progress bar, since this is not supported on the cluster.
 
 See [Hendrix documentation](https://diku-dk.github.io/wiki/slurm-cluster) for more information.
 
