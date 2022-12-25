@@ -32,7 +32,7 @@ config = {
     'INTERNAL_HIDDEN': 128,
     'LSTM_HIDDEN': 200,
     # Training
-    'TOTAL_TIMESTEPS': 1e6,
+    'TOTAL_TIMESTEPS': 12e6,
     '_ENT_COEF': 0,
     '_LEARNING_RATE': 1.5e-4,
     '_N_EPOCHS': 3,
