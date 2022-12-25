@@ -152,6 +152,8 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
             nn.Tanh(),
             nn.Linear(output_hidden, output_hidden, device=device),
             nn.Tanh(),
+            nn.Linear(output_hidden, output_hidden, device=device),
+            nn.Tanh(),
         )
 
         # Update the features dim manually
