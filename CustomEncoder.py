@@ -15,7 +15,8 @@ class LoadingListEncoder(nn.Module):
         self.Container_embedding = Container_embedding
         self.hidden_size = hidden_size
         self.lstm = nn.LSTM(
-            container_embedding_size,
+            # +1 for count
+            1 + container_embedding_size,
             hidden_size,
             device=device,
             batch_first=True
@@ -24,9 +25,14 @@ class LoadingListEncoder(nn.Module):
 
     def forward(self, loading_lists, loading_list_lengths):
         loading_lists = loading_lists.to(self.device)
+        # Add container embedding, batched
+        loading_lists = torch.cat([
+            loading_lists[:, :, 0].unsqueeze(2),
+            self.Container_embedding(loading_lists[:, :, 1].long())
+        ], dim=2)
 
         packed_sequence = nn.utils.rnn.pack_padded_sequence(
-            self.Container_embedding(loading_lists.long()),
+            loading_lists,
             loading_list_lengths.flatten().cpu(),
             batch_first=True,
             enforce_sorted=False
@@ -176,7 +182,7 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
             if key == 'loading_list' or key == 'loading_list_length':
                 # We handle these separately
                 continue
-            # We are given a (Batch, Height, Width) PyTorch tensor
+
             if debug_print:
                 print(key)
                 print(observations[key].shape)
@@ -184,6 +190,7 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
                 extraction = extractor(observations[key].to(self.device))
                 print(extraction.shape)
                 print(extraction)
+
             encoded_tensor_list.append(
                 extractor(
                     observations[key].to(self.device)
