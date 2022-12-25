@@ -128,7 +128,7 @@ else:
     model = MaskablePPO(
         policy='MultiInputPolicy',
         # Starting with no remove
-        env=no_remove_env,
+        env=base_env,
         verbose=0,
         tensorboard_log=f"runs/{run.id}" if create_new_run else None,
         policy_kwargs=policy_kwargs,
@@ -140,27 +140,27 @@ else:
         gamma=config['_GAMMA'],
         device=device,
     )
-    print('Training with no remove...')
-    model.learn(
-        total_timesteps=config['TOTAL_TIMESTEPS'] // 3,
-        callback=WandbCallback(
-            model_save_path=f"models/{run.id}",
-        ) if create_new_run else None,
-        progress_bar=show_progress,
-    )
-    model.set_env(strategic_remove_env)
-    print('Training with strategic remove...')
-    model.learn(
-        total_timesteps=config['TOTAL_TIMESTEPS'] // 3,
-        callback=WandbCallback(
-            model_save_path=f"models/{run.id}",
-        ) if create_new_run else None,
-        progress_bar=show_progress,
-    )
-    model.set_env(base_env)
+    # print('Training with no remove...')
+    # model.learn(
+    #     total_timesteps=config['TOTAL_TIMESTEPS'] // 3,
+    #     callback=WandbCallback(
+    #         model_save_path=f"models/{run.id}",
+    #     ) if create_new_run else None,
+    #     progress_bar=show_progress,
+    # )
+    # model.set_env(strategic_remove_env)
+    # print('Training with strategic remove...')
+    # model.learn(
+    #     total_timesteps=config['TOTAL_TIMESTEPS'] // 3,
+    #     callback=WandbCallback(
+    #         model_save_path=f"models/{run.id}",
+    #     ) if create_new_run else None,
+    #     progress_bar=show_progress,
+    # )
+    # model.set_env(base_env)
     print('Training with base remove...')
     model.learn(
-        total_timesteps=config['TOTAL_TIMESTEPS'] // 3,
+        total_timesteps=config['TOTAL_TIMESTEPS'],
         callback=WandbCallback(
             model_save_path=f"models/{run.id}",
         ) if create_new_run else None,

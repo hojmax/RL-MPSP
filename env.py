@@ -527,8 +527,6 @@ class MPSPEnv(gym.Env):
         # Find last destination container
         container = self.loading_list[0][1]
 
-        assert container != -1, "No containers to offload"
-
         # Update min_value_per_column
         self.min_value_per_column[j] = min(
             self.min_value_per_column[j],
