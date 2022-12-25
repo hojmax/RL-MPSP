@@ -68,6 +68,7 @@ policy_kwargs = {
 create_new_run = (not wandb_run_path or train_again) and log_wandb
 
 if create_new_run:
+    wandb.tensorboard.patch(root_logdir="./runs")
     run = wandb.init(
         project="PPO-SB3",
         entity="rl-msps",
@@ -79,7 +80,6 @@ if create_new_run:
         monitor_gym=True,
         tags=tags
     )
-    # wandb.tensorboard.patch(root_logdir="wandb")
 
 # Take cores from command line, default to 8
 n_envs = int(sys.argv[1]) if len(sys.argv) > 1 else 8
