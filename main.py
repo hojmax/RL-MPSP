@@ -16,7 +16,8 @@ import sys
 tags = ['LENGTH LSTM', 'authentic matrices']
 wandb_run_path = None
 train_again = False
-log_wandb = int(sys.argv[4]) if len(sys.argv) > 4 else False
+log_wandb = int(sys.argv[4]) if len(sys.argv) > 4 else True
+show_progress = int(sys.argv[4]) if len(sys.argv) > 5 else True
 
 config = {
     # Environment
@@ -121,7 +122,7 @@ if wandb_run_path:
             callback=WandbCallback(
                 model_save_path=f"models/{run.id}",
             ) if create_new_run else None,
-            progress_bar=True,
+            progress_bar=show_progress,
         )
 else:
     model = MaskablePPO(
@@ -145,7 +146,7 @@ else:
         callback=WandbCallback(
             model_save_path=f"models/{run.id}",
         ) if create_new_run else None,
-        progress_bar=True,
+        progress_bar=show_progress,
     )
     model.set_env(strategic_remove_env)
     print('Training with strategic remove...')
@@ -154,7 +155,7 @@ else:
         callback=WandbCallback(
             model_save_path=f"models/{run.id}",
         ) if create_new_run else None,
-        progress_bar=True,
+        progress_bar=show_progress,
     )
     model.set_env(base_env)
     print('Training with base remove...')
@@ -163,7 +164,7 @@ else:
         callback=WandbCallback(
             model_save_path=f"models/{run.id}",
         ) if create_new_run else None,
-        progress_bar=True,
+        progress_bar=show_progress,
     )
 
 eval_data = get_benchmarking_data('rl-mpsp-benchmark/set_2')
