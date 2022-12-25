@@ -14,8 +14,8 @@ import sys
 
 # --- Config ---
 tags = ['count LSTM', 'authentic matrices']
-wandb_run_path = None
-train_again = False
+wandb_run_path = 'rl-msps/PPO-SB3/phsk4a1k'
+train_again = True
 log_wandb = int(sys.argv[4]) if len(sys.argv) > 4 else True
 show_progress = int(sys.argv[5]) if len(sys.argv) > 5 else True
 
@@ -118,7 +118,7 @@ if wandb_run_path:
     if train_again:
         print('Fine-tuning...')
         model.learn(
-            total_timesteps=config['TOTAL_TIMESTEPS'] // 3,
+            total_timesteps=config['TOTAL_TIMESTEPS'],
             callback=WandbCallback(
                 model_save_path=f"models/{run.id}",
             ) if create_new_run else None,
