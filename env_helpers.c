@@ -172,11 +172,10 @@ int add_container(int i, int j, struct state *state)
 }
 
 // Offloads containers to the port, updates state and returns the number of shifts
-void offload_containers(struct state *state)
+int offload_containers(struct state *state)
 {
-    // TODO: Should check min_container_per_column
-    int *readditions = get_zeros(state->N);
     int n_shifts = 0;
+    int *columns_to_min_check = get_zeros(state->C);
     for (int j = 0; j < state->C; j++)
     {
         int offloading_column = 0;
@@ -201,48 +200,53 @@ void offload_containers(struct state *state)
 
             if (container != state->port)
             {
-                // Readdition
-                readditions[container] += 1;
+                // Add container back into transportation matrix
+                int transportation_index = state->port * state->N + container;
+                state->transportation_matrix[transportation_index] += 1;
                 n_shifts += 1;
             }
 
+            if (container == state->min_container_per_column[j])
+            {
+                columns_to_min_check[j] = 1;
+            }
             // Update state
             state->bay_matrix[bay_index] = 0;
             state->column_counts[j] -= 1;
         }
     }
-    int loading_list_index = 0;
-    int transportation_matrix_index = state->N - 1;
-    // Add shifts back into the loading list and transportation matrix
-    // for (int i = state->N - 1; i >= 0; i--)
-    // {
-    //     if (readditions[i] > 0)
-    //     {
-    //         while (i < transportation_matrix_index)
-    //         {
-    //             int k = state->N * state->port + transportation_matrix_index;
-    //             if (state->transportation_matrix[k] > 0)
-    //             {
-    //                 loading_list_index++;
-    //             }
-    //             transportation_matrix_index -= 1;
-    //         }
-    //         int k = state->N * state->port + transportation_matrix_index;
-    //         if (state->transportation_matrix[k] > 0)
-    //         {
-    //             state->loading_list[2 * loading_list_index] += readditions[i];
-    //         }
-    //         else
-    //         {
-    //             right_shift_loading_list(state, loading_list_index);
-    //             state->loading_list[2 * loading_list_index] = readditions[i];
-    //             state->loading_list[2 * loading_list_index + 1] = i;
-    //             loading_list_index++;
-    //         }
-    //         state->transportation_matrix[k] += readditions[i];
-    //     }
-    // }
+
+    if (n_shifts > 0)
+    {
+        insert_loading_list(state);
+    }
+
+    for (int j = 0; j < state->C; j++)
+    {
+        if (columns_to_min_check[j])
+        {
+            state->min_container_per_column[j] = get_min_in_column(j, state);
+        }
+    }
+
     return n_shifts;
+}
+
+int get_min_in_column(int j, struct state *state)
+{
+    // Initialize min_container to max container
+    int min_container = state->N - 1;
+    for (int i = state->R - 1; i >= 0; i++)
+    {
+        int bay_index = i * state->C + j;
+        int container = state->bay_matrix[bay_index];
+        if (container == 0)
+        {
+            break;
+        }
+        min_container = min(min_container, container);
+    }
+    return min_container;
 }
 
 void insert_transportation_matrix(struct state *state, int N, int R, int C, double exponential_constant, int seed)
@@ -283,7 +287,7 @@ void insert_transportation_matrix(struct state *state, int N, int R, int C, doub
         }
     }
 
-    return matrix;
+    state->transportation_matrix = matrix;
 }
 
 void free_array(int *array)
