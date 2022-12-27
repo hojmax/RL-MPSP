@@ -1,5 +1,8 @@
 ## 🏄‍♂️ Usage
 
+### Compiling C
+The Makefile has two commands, one for compiling the C code on an ARM machine (e.g. M1 and M2 Macs), and one for compiling on an x86 machine. To compile on an ARM machine, run `make arm`. To compile on an x86 machine, run `make non-arm`.
+
 ### Local
 
 For local use, simply run the `main.py` file.
