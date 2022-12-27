@@ -4,7 +4,9 @@ import pathlib
 import gym
 import numpy
 import torch
-from env import MPSPEnv
+
+from ...env import MPSPEnv
+# from env import MPSPEnv
 
 from .abstract_game import AbstractGame
 
@@ -30,7 +32,7 @@ class MuZeroConfig:
         port_size = 1
         loading_list_size = mpsp_config["N_PORTS"]*(mpsp_config["N_PORTS"] - 1)
         self.observation_shape = (1, 1, bay_size + port_size + loading_list_size)  # Dimensions of the game observation, must be 3D (channel, height, width). For a 1D array, please reshape it to (1, 1, length of array)
-        self.action_space = list(range(2))  # Fixed list of all possible actions. You should only edit the length
+        self.action_space = list(range(2 * mpsp_config['COLUMNS']))  # Fixed list of all possible actions. You should only edit the length
         self.players = list(range(1))  # List of players. You should only edit the length
         self.stacked_observations = 0  # Number of previous observations and previous actions to add to the current observation
 
@@ -144,7 +146,7 @@ class Game(AbstractGame):
     """
 
     def __init__(self, seed=None):
-        self.env = gym.make("CartPole-v1")
+        self.env = MPSPEnv(mpsp_config['ROWS'], mpsp_config['COLUMNS'], mpsp_config['N_PORTS'])
         if seed is not None:
             self.env.seed(seed)
 
@@ -159,7 +161,11 @@ class Game(AbstractGame):
             The new observation, the reward and a boolean if the game has ended.
         """
         observation, reward, done, _ = self.env.step(action)
-        return numpy.array([[observation]]), reward, done
+
+        # Convert the observation to a numpy array
+        observation = self.observation_to_numpy(observation)
+    
+        return observation, reward, done
 
     def legal_actions(self):
         """
@@ -172,7 +178,23 @@ class Game(AbstractGame):
         Returns:
             An array of integers, subset of the action space.
         """
-        return list(range(2))
+        action_mask = self.env.action_masks()
+        return list(numpy.where(action_mask)[0])
+
+    def observation_to_numpy(self, observation):
+        # Extract the observation from the dictionary
+        values = list(observation.values())
+
+        # Flatten the observation
+        values = [numpy.array(v).flatten() for v in values]
+
+        # Concatenate the observation
+        concat = numpy.concatenate(values, axis=0)
+
+        # Reshape the observation
+        concat = concat.reshape(1,1,-1)
+
+        return concat
 
     def reset(self):
         """
@@ -181,7 +203,13 @@ class Game(AbstractGame):
         Returns:
             Initial observation of the game.
         """
-        return numpy.array([[self.env.reset()]])
+
+        observation = self.env.reset()
+
+        # Convert the observation to a numpy array
+        observation = self.observation_to_numpy(observation)
+
+        return observation
 
     def close(self):
         """
@@ -206,8 +234,9 @@ class Game(AbstractGame):
         Returns:
             String representing the action.
         """
-        actions = {
-            0: "Push cart to the left",
-            1: "Push cart to the right",
-        }
+        # Actions less than amount of columns are adding to that column
+        # Actions greater than amount of columns are removing from that column
+        actions = {i: f"Add container to column {i}" for i in range(self.env.columns)}
+        actions.update({i: f"Remove container from column {i - self.env.columns}" for i in range(self.env.columns, 2 * self.env.columns)})
+
         return f"{action_number}. {actions[action_number]}"
