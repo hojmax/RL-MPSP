@@ -5,8 +5,8 @@ import gym
 import numpy
 import torch
 
-from ...env import MPSPEnv
-# from env import MPSPEnv
+# from .env import MPSPEnv
+from env import MPSPEnv
 
 from .abstract_game import AbstractGame
 
@@ -182,6 +182,11 @@ class Game(AbstractGame):
         return list(numpy.where(action_mask)[0])
 
     def observation_to_numpy(self, observation):
+
+        # Remove loading list length and will block from the observation
+        observation.pop('loading_list_length')
+        observation.pop('will_block')
+
         # Extract the observation from the dictionary
         values = list(observation.values())
 
