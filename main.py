@@ -3,7 +3,7 @@ from wandb.integration.sb3 import WandbCallback
 from sb3_contrib.ppo_mask import MaskablePPO
 from benchmark import get_benchmarking_data
 from CustomEncoder import CustomCombinedExtractor
-from env import MPSPEnv, NoRemoveWrapper, StrategicRemoveWrapper
+from env import MPSPEnv
 from tqdm import tqdm
 import numpy as np
 import torch
@@ -14,9 +14,9 @@ import sys
 
 # --- Config ---
 tags = ['count LSTM', 'authentic matrices']
-wandb_run_path = 'rl-msps/PPO-SB3/phsk4a1k'
-train_again = True
-log_wandb = int(sys.argv[4]) if len(sys.argv) > 4 else True
+wandb_run_path = None
+train_again = False
+log_wandb = int(sys.argv[4]) if len(sys.argv) > 4 else False
 show_progress = int(sys.argv[5]) if len(sys.argv) > 5 else True
 
 config = {
@@ -92,22 +92,6 @@ base_env = make_vec_env(
     ),
     n_envs=n_envs,
 )
-no_remove_env = make_vec_env(
-    lambda: NoRemoveWrapper(MPSPEnv(
-        config['ROWS'],
-        config['COLUMNS'],
-        config['N_PORTS']
-    )),
-    n_envs=n_envs,
-)
-strategic_remove_env = make_vec_env(
-    lambda: StrategicRemoveWrapper(MPSPEnv(
-        config['ROWS'],
-        config['COLUMNS'],
-        config['N_PORTS']
-    )),
-    n_envs=n_envs,
-)
 
 if wandb_run_path:
     model_file = wandb.restore('model.zip', run_path=wandb_run_path)
@@ -140,24 +124,6 @@ else:
         gamma=config['_GAMMA'],
         device=device,
     )
-    # print('Training with no remove...')
-    # model.learn(
-    #     total_timesteps=config['TOTAL_TIMESTEPS'] // 3,
-    #     callback=WandbCallback(
-    #         model_save_path=f"models/{run.id}",
-    #     ) if create_new_run else None,
-    #     progress_bar=show_progress,
-    # )
-    # model.set_env(strategic_remove_env)
-    # print('Training with strategic remove...')
-    # model.learn(
-    #     total_timesteps=config['TOTAL_TIMESTEPS'] // 3,
-    #     callback=WandbCallback(
-    #         model_save_path=f"models/{run.id}",
-    #     ) if create_new_run else None,
-    #     progress_bar=show_progress,
-    # )
-    # model.set_env(base_env)
     print('Training with base remove...')
     model.learn(
         total_timesteps=config['TOTAL_TIMESTEPS'],
