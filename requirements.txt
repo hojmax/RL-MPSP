@@ -6,3 +6,10 @@ pygame==2.1.2
 tensorboard==2.11.0
 tqdm==4.64.1
 openpyxl==3.0.10
+gym[classic_control]
+nevergrad
+numpy
+ray
+seaborn
+tensorboard
+torch
