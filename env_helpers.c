@@ -1,26 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
-
-#define min(a, b) (a < b ? a : b)
-#define max(a, b) (a > b ? a : b)
-
-// Contains information about the state of the environment
-struct state
-{
-    int *transportation_matrix;
-    int *bay_matrix;
-    int *loading_list;
-    int loading_list_length;
-    int loading_list_padded_length;
-    int *column_counts;
-    int *min_container_per_column;
-    int *containers_per_port;
-    int N;
-    int R;
-    int C;
-    int port;
-};
+#include "env_helpers.h"
+#include <assert.h>
 
 // Returns a random number from an exponential distribution with parameter lambda
 double ran_expo(double lambda)
@@ -68,6 +50,23 @@ int *get_zeros(int n)
     int *zeros = calloc(n, sizeof(int));
     return zeros;
 }
+// Returns a binary array of length 2*c
+// The first c elements are the add mask
+// The last c elements are the remove mask
+void insert_mask(struct state *state)
+{
+    int *mask = get_zeros(2 * state->C);
+
+    for (int j = 0; j < state->C; j++)
+    {
+        // Add mask
+        mask[j] = state->column_counts[j] < state->R;
+        // Remove mask
+        mask[j + state->C] = state->column_counts[j] > 0;
+    }
+
+    state->mask = mask;
+}
 
 // Generates the loading list and inserts it into the state
 void insert_loading_list(struct state *state)
@@ -86,9 +85,8 @@ void insert_loading_list(struct state *state)
             int count = state->transportation_matrix[matrix_index];
             if (count > 0)
             {
-                int container = j;
                 list[2 * list_index] = count;
-                list[2 * list_index + 1] = container;
+                list[2 * list_index + 1] = j; // container
                 list_index++;
             }
         }
@@ -100,7 +98,7 @@ void insert_loading_list(struct state *state)
 }
 
 // Left shifts the loading list (removes first element)
-int left_shift_loading_list(struct state *state)
+void left_shift_loading_list(struct state *state)
 {
     for (int i = 0; i < state->loading_list_length - 1; i++)
     {
@@ -112,17 +110,98 @@ int left_shift_loading_list(struct state *state)
     state->loading_list_length -= 1;
 }
 
-// Right shifts the loading list (zeroes first element)
-int right_shift_loading_list(struct state *state, int offset)
+// Right shifts the loading list (padding start with zeros)
+void right_shift_loading_list(struct state *state)
 {
-    for (int i = state->loading_list_length; i > offset; i--)
+    for (int i = state->loading_list_length; i > 0; i--)
     {
         state->loading_list[2 * i] = state->loading_list[2 * (i - 1)];
         state->loading_list[2 * i + 1] = state->loading_list[2 * (i - 1) + 1];
     }
-    state->loading_list[offset] = 0;
-    state->loading_list[offset + 1] = 0;
+    state->loading_list[0] = 0;
+    state->loading_list[1] = 0;
     state->loading_list_length += 1;
+}
+
+int get_min_in_column(int j, struct state *state)
+{
+    // Initialize min_container to max container + 1
+    int min_container = state->N;
+    for (int i = state->R - 1; i >= 0; i--)
+    {
+        int bay_index = i * state->C + j;
+        int container = state->bay_matrix[bay_index];
+        // Reached top of stack
+        if (container == 0)
+        {
+            break;
+        }
+        min_container = min(min_container, container);
+    }
+
+    return min_container;
+}
+
+// Offloads containers to the port, updates state and returns the number of shifts
+int offload_containers(struct state *state)
+{
+    int n_shifts = 0;
+    int *columns_to_min_check = get_zeros(state->C);
+    for (int j = 0; j < state->C; j++)
+    {
+        int offloading_column = 0;
+        for (int i = state->R - 1; i >= 0; i--)
+        {
+            int bay_index = i * state->C + j;
+            int container = state->bay_matrix[bay_index];
+            // We reached top of stack
+            if (container == 0)
+            {
+                break;
+            }
+            if (container == state->port)
+            {
+                offloading_column = 1;
+            }
+
+            if (!offloading_column)
+            {
+                continue;
+            }
+
+            if (container != state->port)
+            {
+                // Add container back into transportation matrix
+                int transportation_index = state->port * state->N + container;
+                state->transportation_matrix[transportation_index] += 1;
+                state->containers_per_port[state->port] += 1;
+                n_shifts += 1;
+            }
+
+            if (container == state->min_container_per_column[j])
+            {
+                columns_to_min_check[j] = 1;
+            }
+            // Update state
+            state->bay_matrix[bay_index] = 0;
+            state->column_counts[j] -= 1;
+        }
+    }
+
+    if (n_shifts > 0)
+    {
+        insert_loading_list(state);
+    }
+
+    for (int j = 0; j < state->C; j++)
+    {
+        if (columns_to_min_check[j])
+        {
+            state->min_container_per_column[j] = get_min_in_column(j, state);
+        }
+    }
+
+    return n_shifts;
 }
 
 // Adds container to bay and returns delta reward
@@ -171,84 +250,6 @@ int add_container(int i, int j, struct state *state)
     return delta_reward;
 }
 
-// Offloads containers to the port, updates state and returns the number of shifts
-int offload_containers(struct state *state)
-{
-    int n_shifts = 0;
-    int *columns_to_min_check = get_zeros(state->C);
-    for (int j = 0; j < state->C; j++)
-    {
-        int offloading_column = 0;
-        for (int i = state->R - 1; i >= 0; i--)
-        {
-            int bay_index = i * state->C + j;
-            int container = state->bay_matrix[bay_index];
-            // We reached top of stack
-            if (container == 0)
-            {
-                break;
-            }
-            if (container == state->port)
-            {
-                offloading_column = 1;
-            }
-
-            if (!offloading_column)
-            {
-                continue;
-            }
-
-            if (container != state->port)
-            {
-                // Add container back into transportation matrix
-                int transportation_index = state->port * state->N + container;
-                state->transportation_matrix[transportation_index] += 1;
-                n_shifts += 1;
-            }
-
-            if (container == state->min_container_per_column[j])
-            {
-                columns_to_min_check[j] = 1;
-            }
-            // Update state
-            state->bay_matrix[bay_index] = 0;
-            state->column_counts[j] -= 1;
-        }
-    }
-
-    if (n_shifts > 0)
-    {
-        insert_loading_list(state);
-    }
-
-    for (int j = 0; j < state->C; j++)
-    {
-        if (columns_to_min_check[j])
-        {
-            state->min_container_per_column[j] = get_min_in_column(j, state);
-        }
-    }
-
-    return n_shifts;
-}
-
-int get_min_in_column(int j, struct state *state)
-{
-    // Initialize min_container to max container
-    int min_container = state->N - 1;
-    for (int i = state->R - 1; i >= 0; i++)
-    {
-        int bay_index = i * state->C + j;
-        int container = state->bay_matrix[bay_index];
-        if (container == 0)
-        {
-            break;
-        }
-        min_container = min(min_container, container);
-    }
-    return min_container;
-}
-
 void insert_transportation_matrix(struct state *state, int N, int R, int C, double exponential_constant, int seed)
 {
     int *matrix = get_zeros(N * N);
@@ -288,9 +289,108 @@ void insert_transportation_matrix(struct state *state, int N, int R, int C, doub
     }
 
     state->transportation_matrix = matrix;
+    state->containers_per_port = containers_per_port;
 }
 
-void free_array(int *array)
+// Removes container from bay and returns delta reward
+int remove_container(int i, int j, struct state *state)
 {
-    free(array);
+    int bay_index = i * state->C + j;
+    int container = state->bay_matrix[bay_index];
+
+    // Add to beginning of loading list
+    if (state->loading_list[1] == container)
+    {
+        state->loading_list[0] += 1;
+    }
+    else
+    {
+        right_shift_loading_list(state);
+        state->loading_list[0] = 1;
+        state->loading_list[1] = container;
+    }
+
+    // Update state
+    state->bay_matrix[bay_index] = 0;
+    state->column_counts[j] -= 1;
+    state->transportation_matrix[state->port * state->N + container] += 1;
+    state->containers_per_port[state->port] += 1;
+
+    // Check if min_value_per_column needs to be checked/updated
+    if (container == state->min_container_per_column[j])
+    {
+        state->min_container_per_column[j] = get_min_in_column(j, state);
+    }
+
+    return -1;
+}
+
+void free_state(struct state *state)
+{
+    free(state->bay_matrix);
+    free(state->transportation_matrix);
+    free(state->loading_list);
+    free(state->column_counts);
+    free(state->min_container_per_column);
+    free(state->containers_per_port);
+    free(state->mask);
+    free(state);
+}
+
+struct state *get_state(int N, int R, int C, double exponential_constant, int seed)
+{
+    struct state *state = malloc(sizeof(struct state));
+    state->N = N;
+    state->R = R;
+    state->C = C;
+    state->port = 0;
+    state->bay_matrix = get_zeros(R * C);
+    state->column_counts = get_zeros(C);
+    state->min_container_per_column = get_zeros(C);
+    // Initialize min_container_per_column to N (max value + 1)
+    for (int i = 0; i < C; i++)
+    {
+        state->min_container_per_column[i] = N;
+    }
+    insert_transportation_matrix(state, N, R, C, exponential_constant, seed);
+    insert_loading_list(state);
+    insert_mask(state);
+    state->is_terminal = 0;
+    state->last_reward = 0;
+    state->last_action = 0;
+    state->sum_reward = 0;
+    return state;
+}
+
+// Execute one time step within the environment
+void step(int action, struct state *state)
+{
+    // Assert that env is not terminal
+    assert(!state->is_terminal);
+
+    int should_add = action < state->C;
+    int reward;
+    if (should_add)
+    {
+        int j = action;
+        // Placed top down
+        int i = state->R - state->column_counts[j] - 1;
+        // Cannot add containers to full columns
+        assert(state->column_counts[j] < state->R);
+        reward = add_container(i, j, state);
+    }
+    else
+    {
+        int j = action - state->C;
+        int i = state->R - state->column_counts[j];
+        // Cannot remove containers from empty columns
+        assert(state->column_counts[j] > 0);
+        reward = remove_container(i, j, state);
+    }
+    // Update mask
+    insert_mask(state);
+    state->is_terminal = state->port + 1 == state->N;
+    state->last_reward = reward;
+    state->last_action = action;
+    state->sum_reward += reward;
 }

@@ -12,3 +12,4 @@ video
 model.zip
 .pytest_cache
 test.ipynb
+env_helpers.so
