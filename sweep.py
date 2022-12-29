@@ -126,6 +126,6 @@ def train(config=None):
         wandb.summary['evaluation_benchmark'] = eval
 
 
-sweep_id = 'rl-msps/PPO-SB3/syw8i8j5'
+sweep_id = 'rl-msps/PPO-SB3/7coh7fnn'
 
 wandb.agent(sweep_id, train)
