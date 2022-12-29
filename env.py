@@ -31,6 +31,7 @@ class State(Structure):
         ("last_reward", c_int),
         ("last_action", c_int),
         ("sum_reward", c_int),
+        ("remove_restrictions", c_int),
     ]
 
 
@@ -48,10 +49,17 @@ class text_type(Enum):
     SUBHEADLINE = 28
 
 
+remove_lookup = {
+    'remove_all': 0,
+    'remove_only_when_blocking': 1,
+    'no_remove': 2
+}
+
+
 class MPSPEnv(gym.Env):
     """Environment for the Multi Port Shipping Problem"""
 
-    def __init__(self, rows, columns, n_ports, render_mode: Optional[str] = None):
+    def __init__(self, rows, columns, n_ports, remove_restrictions, render_mode: Optional[str] = None):
         super(MPSPEnv, self).__init__()
         self.R = rows
         self.C = columns
@@ -60,6 +68,7 @@ class MPSPEnv(gym.Env):
         self.screen = None
         self.colors = None
         self.probs = None
+        self.remove_restrictions = remove_lookup[remove_restrictions]
         self.render_mode = render_mode
         self.metadata = {
             "render.modes": [
@@ -124,6 +133,7 @@ class MPSPEnv(gym.Env):
             c_int(self.C),
             c_double(self.exponential_constant),
             c_int(self.c_seed),
+            c_int(self.remove_restrictions)
         )
 
         # ----- NOTE: The following numpy arrays are views of the underlying C arrays (not a copy)

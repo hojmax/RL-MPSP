@@ -25,12 +25,12 @@ config = {
     'COLUMNS': 4,
     'N_PORTS': 10,
     # Model
-    'PI_LAYER_SIZES': [128, 128],
-    'VF_LAYER_SIZES': [128, 128],
-    'CONTAINER_EMBEDDING_SIZE': 8,
-    'OUTPUT_HIDDEN': 512,
-    'INTERNAL_HIDDEN': 128,
-    'LSTM_HIDDEN': 200,
+    'PI_LAYER_SIZES': [64, 64],
+    'VF_LAYER_SIZES': [64, 64],
+    'CONTAINER_EMBEDDING_SIZE': 16,
+    'OUTPUT_HIDDEN': 256,
+    'INTERNAL_HIDDEN': 64,
+    'LSTM_HIDDEN': 100,
     # Training
     'TOTAL_TIMESTEPS': 12e6,
     '_ENT_COEF': 0,
@@ -88,7 +88,8 @@ base_env = make_vec_env(
     lambda: MPSPEnv(
         config['ROWS'],
         config['COLUMNS'],
-        config['N_PORTS']
+        config['N_PORTS'],
+        "remove_all"
     ),
     n_envs=n_envs,
 )
