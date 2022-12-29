@@ -14,7 +14,7 @@ import sys
 
 # --- Config ---
 tags = ['rnn']
-wandb_run_path = "rl-msps/PPO-SB3/5j8ogkic"
+wandb_run_path = None
 train_again = True
 log_wandb = True
 
@@ -30,7 +30,7 @@ config = {
     'OUTPUT_HIDDEN': 256,
     'INTERNAL_HIDDEN': 32,
     # Training
-    'TOTAL_TIMESTEPS': 30000000,
+    'TOTAL_TIMESTEPS': 3_000_000,
     '_ENT_COEF': 0,
     '_LEARNING_RATE': 1e-4,
     '_N_EPOCHS': 3,
