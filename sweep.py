@@ -10,9 +10,6 @@ import wandb
 import sys
 import os
 
-# WANDB_DISABLE_SERVICE=True
-os.environ['WANDB_DISABLE_SERVICE'] = 'true'
-
 wandb.login(
     # Get key from command line, default to None
     key=sys.argv[2] if len(sys.argv) > 2 else None
