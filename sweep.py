@@ -55,7 +55,7 @@ def train(config=None):
             policy='MultiInputPolicy',
             env=env,
             verbose=0,
-            tensorboard_log=wandb.run.dir,
+            tensorboard_log=f"runs/{wandb.run.id}",
             policy_kwargs=policy_kwargs,
             ent_coef=config['_ENT_COEF'],
             learning_rate=config['_LEARNING_RATE'],
@@ -69,7 +69,7 @@ def train(config=None):
         model.learn(
             total_timesteps=config['TOTAL_TIMESTEPS'],
             callback=WandbCallback(
-                model_save_path=wandb.run.dir,
+                model_save_path=f"runs/{wandb.run.id}",
             ),
             # progress_bar=True,
         )
