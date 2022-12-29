@@ -74,7 +74,7 @@ def train(config=None):
             callback=WandbCallback(
                 model_save_path=wandb.run.dir,
             ),
-            progress_bar=True,
+            # progress_bar=True,
         )
 
         eval_data = get_benchmarking_data('rl-mpsp-benchmark/set_2')
