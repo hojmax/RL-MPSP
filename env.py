@@ -191,8 +191,6 @@ class MPSPEnv(gym.Env):
 
         remove_mask = self.column_counts < 0
 
-
-
         mask = np.concatenate((add_mask, remove_mask), dtype=np.int8)
 
         return mask
@@ -597,7 +595,7 @@ class MPSPEnv(gym.Env):
             return np.min(non_zero_values)
 
     def _get_observation(self):
-        
+
         next_container = self._get_last_destination_container()
         will_block = self._get_will_block()
 
@@ -651,26 +649,37 @@ class MPSPEnv(gym.Env):
 
     def _get_transportation_matrix(self, N, ordering):
         """Generates a feasible transportation matrix (short distance)
-
         Args:
             N (int): Number of ports
             ordering (list): List of lists of what ports to add destination containers to first
         """
         output = np.zeros((N, N), dtype=np.int32)
-        bay_capacity = self.capacity if self.virtual_Capacity is None else self.virtual_Capacity
+        bay_capacity = (
+            self.capacity
+            if self.virtual_Capacity is None else
+            self.virtual_Capacity
+        )
+
+        exponential_constant = 0.5
+        exponential_multiplier = 10
 
         for i in range(N-1):
             for j in ordering[i]:
-                output[i, j] = np.random.randint(0, bay_capacity+1)
+                output[i, j] = min(
+                    np.random.exponential(
+                        exponential_constant
+                    ) * exponential_multiplier,
+                    bay_capacity
+                )
                 bay_capacity -= output[i, j]
+
+            if bay_capacity > 0:
+                # Make sure that ship is fully loaded
+                output[i, np.random.choice(ordering[i])] += bay_capacity
+                bay_capacity = 0
 
             # Offloaded at port
             for h in range(i+1):
                 bay_capacity += output[h, i+1]
 
-        # Make sure the first row of the transportation matrix has containers
-        # Otherwise you could have skipped the first port
-        if np.sum(output[0]) == 0:
-            return self._get_transportation_matrix(N, ordering)
-        else:
-            return output
+        return output

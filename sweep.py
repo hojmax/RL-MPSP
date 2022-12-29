@@ -8,7 +8,6 @@ import numpy as np
 import torch
 import wandb
 import sys
-import os
 
 wandb.login(
     # Get key from command line, default to None
@@ -20,7 +19,9 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 def train(config=None):
     # Initialize a new wandb run
-    with wandb.init(config=config):
+    with wandb.init(config=config,
+                    monitor_gym=True,
+                    sync_tensorboard=True):
         # If called by wandb.agent, as below,
         # this config will be set by Sweep Controller
         config = wandb.config
@@ -67,7 +68,7 @@ def train(config=None):
         )
 
         model.learn(
-            total_timesteps= config['TOTAL_TIMESTEPS'],
+            total_timesteps=config['TOTAL_TIMESTEPS'],
             callback=WandbCallback(
                 model_save_path=f"runs/{wandb.run.id}",
             ),

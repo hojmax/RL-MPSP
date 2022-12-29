@@ -123,10 +123,26 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
                 )
                 total_concat_size += container_embedding_size
             elif key == 'transportation_matrix':
-                extractors[key] = TransportationEncoder(
-                    n_ports,
-                    internal_hidden,
-                    device=device
+                # extractors[key] = TransportationEncoder(
+                #     n_ports,
+                #     internal_hidden,
+                #     device=device
+                # )
+                extractors[key] = nn.Sequential(
+                    ToFloat(),
+                    nn.Linear(
+                        subspace.shape[1],
+                        internal_hidden,
+                        device=device
+                    ),
+                    nn.Tanh(),
+                    nn.Flatten(),
+                    nn.Linear(
+                        internal_hidden * subspace.shape[0],
+                        internal_hidden,
+                        device=device
+                    ),
+                    nn.Tanh()
                 )
                 total_concat_size += internal_hidden
             elif key == 'will_block':
@@ -145,6 +161,8 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
 
         self.final_layer = nn.Sequential(
             nn.Linear(total_concat_size, output_hidden, device=device),
+            nn.Tanh(),
+            nn.Linear(output_hidden, output_hidden, device=device),
             nn.Tanh(),
         )
 
