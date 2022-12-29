@@ -342,7 +342,7 @@ void free_state(struct state *state)
     free(state);
 }
 
-struct state *get_state(int N, int R, int C, double exponential_constant, int seed, enum remove_restrictions remove_restrictions)
+struct state *get_base_state(int N, int R, int C, enum remove_restrictions remove_restrictions)
 {
     struct state *state = malloc(sizeof(struct state));
     state->N = N;
@@ -354,7 +354,7 @@ struct state *get_state(int N, int R, int C, double exponential_constant, int se
     state->transportation_matrix = get_zeros(N * N);
     state->containers_per_port = get_zeros(N);
     state->mask = get_zeros(2 * C);
-    int upper_triangle_length = state->N * (state->N - 1) / 2;
+    int upper_triangle_length = N * (N - 1) / 2;
     // 2 * upper_triangle_length because we need to store the count and the container
     state->loading_list = get_zeros(2 * upper_triangle_length);
     state->loading_list_padded_length = upper_triangle_length;
@@ -364,14 +364,40 @@ struct state *get_state(int N, int R, int C, double exponential_constant, int se
     {
         state->min_container_per_column[i] = N;
     }
-    insert_transportation_matrix(state, N, R, C, exponential_constant, seed);
-    insert_loading_list(state);
-    insert_mask(state);
+    state->remove_restrictions = remove_restrictions;
     state->is_terminal = 0;
     state->last_reward = 0;
     state->last_action = -1;
     state->sum_reward = 0;
-    state->remove_restrictions = remove_restrictions;
+    insert_mask(state);
+    return state;
+}
+
+struct state *get_random_state(int N, int R, int C, double exponential_constant, int seed, enum remove_restrictions remove_restrictions)
+{
+    struct state *state = get_base_state(N, R, C, remove_restrictions);
+    insert_transportation_matrix(state, N, R, C, exponential_constant, seed);
+    insert_loading_list(state);
+    return state;
+}
+
+void insert_containers_per_port(struct state *state)
+{
+    for (int i = 0; i < state->N - 1; i++)
+    {
+        for (int j = i + 1; j < state->N; j++)
+        {
+            state->containers_per_port[i] += state->transportation_matrix[i * state->N + j];
+        }
+    }
+}
+
+struct state *get_state_from_transportation_matrix(int N, int R, int C, int *transportation_matrix, enum remove_restrictions remove_restrictions)
+{
+    struct state *state = get_base_state(N, R, C, remove_restrictions);
+    state->transportation_matrix = transportation_matrix;
+    insert_containers_per_port(state);
+    insert_loading_list(state);
     return state;
 }
 

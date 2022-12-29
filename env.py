@@ -36,7 +36,8 @@ class State(Structure):
 
 
 c_helpers = ctypes.CDLL('./env_helpers.so')
-c_helpers.get_state.restype = POINTER(State)
+c_helpers.get_random_state.restype = POINTER(State)
+c_helpers.get_state_from_transportation_matrix.restype = POINTER(State)
 c_helpers.get_blocking.restype = POINTER(c_int)
 c_helpers.free_blocking.restype = None
 c_helpers.step.restype = None
@@ -127,14 +128,24 @@ class MPSPEnv(gym.Env):
         self.seed(seed)
 
         # Caller should free the state once it is terminated
-        self.state = c_helpers.get_state(
-            c_int(self.N),
-            c_int(self.R),
-            c_int(self.C),
-            c_double(self.exponential_constant),
-            c_int(self.c_seed),
-            c_int(self.remove_restrictions)
-        )
+        if transportation_matrix is None:
+            self.state = c_helpers.get_random_state(
+                c_int(self.N),
+                c_int(self.R),
+                c_int(self.C),
+                c_double(self.exponential_constant),
+                c_int(self.c_seed),
+                c_int(self.remove_restrictions)
+            )
+        else:
+            assert transportation_matrix.dtype == np.int32, "Transportation matrix must be of type np.int32"
+            self.state = c_helpers.get_state_from_transportation_matrix(
+                c_int(self.N),
+                c_int(self.R),
+                c_int(self.C),
+                transportation_matrix.ctypes.data_as(POINTER(c_int)),
+                c_int(self.remove_restrictions),
+            )
 
         # ----- NOTE: The following numpy arrays are views of the underlying C arrays (not a copy)
         self.bay_matrix = np.ctypeslib.as_array(
@@ -161,6 +172,10 @@ class MPSPEnv(gym.Env):
             self.state.contents.min_container_per_column,
             shape=(self.C,),
         )
+        self.containers_per_port = np.ctypeslib.as_array(
+            self.state.contents.containers_per_port,
+            shape=(self.N,),
+        )
         # -----
 
         return self._get_observation()
@@ -178,9 +193,6 @@ class MPSPEnv(gym.Env):
         reward = self.state.contents.last_reward
         observation = self._get_observation()
 
-        if is_terminal:
-            self.close()
-
         return (
             observation,
             reward,
@@ -194,28 +206,33 @@ class MPSPEnv(gym.Env):
 
     def close(self):
         """Free the memory allocated in C"""
+        print('Closed environment')
         c_helpers.free_state(self.state)
 
     def print(self):
-        print(f'Port: {self.state.contents.port}')
-        print('Bay matrix:')
-        print(self.bay_matrix)
-        print('Transportation matrix:')
-        print(self.transportation_matrix)
-        print('Column counts:')
-        print(self.column_counts)
         print('Min container per column:')
         print(self.min_container_per_column)
         print('Loading list:')
         print(self.loading_list)
+        print('Loading list length:')
+        print(self.state.contents.loading_list_length)
         print("Reward:")
         print(self.state.contents.last_reward)
         print("Sum reward:")
         print(self.state.contents.sum_reward)
         print("Is terminated:")
         print(self.state.contents.is_terminal)
+        print("Containers per port:")
+        print(self.containers_per_port)
+        print(f'Port: {self.state.contents.port}')
         print("Mask:")
         print(self.action_mask)
+        print('Transportation matrix:')
+        print(self.transportation_matrix)
+        print('Bay matrix:')
+        print(self.bay_matrix)
+        print('Column counts:')
+        print(self.column_counts)
         print()
 
     def render(self, mode='human'):
@@ -373,7 +390,8 @@ class MPSPEnv(gym.Env):
         self._render_text(f'Bay', pos=(center_x, y))
 
         text_offset = 15
-        blocking_containers = self._get_blocking()
+        # blocking_containers = self._get_blocking()
+        blocking_containers = np.zeros((self.R, self.C))
 
         # Draw the grid lines and the containers
         for i in range(self.R):
