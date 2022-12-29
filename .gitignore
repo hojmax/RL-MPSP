@@ -11,3 +11,4 @@ rl-mpsp-benchmark
 video
 model.zip
 .pytest_cache
+test.ipynb

@@ -31,22 +31,13 @@ class TransportationEncoder(nn.Module):
 
     def forward(self, x):
         x = x.to(self.device).float()
-        batch_size = x.shape[0]
 
         # Pass through RNN
-        hidden = self.init_hidden(batch_size)
-        _, hidden = self.rnn(x, hidden)
+        # Hidden defaults to zero
+        _, hidden = self.rnn(x)
 
         # Hidden has shape (1, batch_size, hidden_size)
         return hidden.squeeze(0)
-
-    def init_hidden(self, batch_size):
-        return torch.zeros(
-            1,
-            batch_size,
-            self.hidden_size,
-            device=self.device
-        )
 
 
 class ToLong(nn.Module):
