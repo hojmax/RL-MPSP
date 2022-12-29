@@ -67,7 +67,7 @@ def train(config=None):
         )
 
         model.learn(
-            total_timesteps=config['TOTAL_TIMESTEPS'],
+            total_timesteps=1000,  # config['TOTAL_TIMESTEPS'],
             callback=WandbCallback(
                 model_save_path=f"runs/{wandb.run.id}",
             ),
