@@ -4,7 +4,6 @@ from sb3_contrib.ppo_mask import MaskablePPO
 from benchmark import get_benchmarking_data
 from CustomEncoder import CustomCombinedExtractor
 from env import MPSPEnv
-from tqdm import tqdm
 import numpy as np
 import torch
 import wandb
@@ -133,7 +132,7 @@ eval_rewards = []
 paper_rewards = [-e['paper_result'] for e in eval_data]
 paper_seeds = [e['seed'] for e in eval_data]
 
-for e in tqdm(eval_data, desc='Evaluating'):
+for e in eval_data:
     # Creating seperate env for evaluation
     env = MPSPEnv(
         config['ROWS'],
