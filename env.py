@@ -186,7 +186,8 @@ class MPSPEnv(gym.Env):
             )
 
         # Masking out empty columns
-        remove_mask = self.column_counts > 0
+        # ! ! ! ALL ZEROS, NO REMOVE
+        remove_mask = self.column_counts < 0
 
         mask = np.concatenate((add_mask, remove_mask), dtype=np.int8)
 
