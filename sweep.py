@@ -7,6 +7,7 @@ from env import MPSPEnv
 import numpy as np
 import torch
 import wandb
+import gym
 import sys
 
 wandb.login(
@@ -96,6 +97,8 @@ def train(config=None):
                 config['COLUMNS'],
                 config['N_PORTS']
             )
+            env = gym.wrappers.RecordVideo(
+                env, video_folder=f'video/N{config["N_PORTS"]}_R{config["ROWS"]}_C{config["COLUMNS"]}_S{e["seed"]}')
 
             total_reward = 0
             obs = env.reset(
@@ -110,7 +113,13 @@ def train(config=None):
                     action_masks=action_mask,
                     deterministic=True  # Deterministic for evaluation
                 )
+                obs_tensor, _ = model.policy.obs_to_tensor(obs)
+                distribution = model.policy.get_distribution(obs_tensor)
+                env.unwrapped.probs = distribution.distribution.probs
+                env.unwrapped.prev_action = action
+                env.unwrapped.action_mask = action_mask
 
+                env.render()
                 obs, reward, done, _ = env.step(action)
                 total_reward += reward
 
@@ -126,6 +135,6 @@ def train(config=None):
         wandb.summary['evaluation_benchmark'] = eval
 
 
-sweep_id = 'rl-msps/PPO-SB3/ggtbs7ys'
+sweep_id = 'rl-msps/PPO-SB3/ne37ks36'
 
 wandb.agent(sweep_id, train)
