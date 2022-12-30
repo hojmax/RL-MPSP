@@ -159,6 +159,8 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
         self.final_layer = nn.Sequential(
             nn.Linear(total_concat_size, output_hidden, device=device),
             nn.Tanh(),
+            nn.Linear(output_hidden, output_hidden, device=device),
+            nn.Tanh(),
         )
 
         # Update the features dim manually

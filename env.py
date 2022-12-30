@@ -39,7 +39,7 @@ class MPSPEnv(gym.Env):
         }
 
         # Currently we can only add containers. So C and not 2 * C
-        self.action_space = spaces.Discrete(self.C)
+        self.action_space = spaces.Discrete(2 * self.C)
         bay_matrix_def = spaces.Box(
             low=0,
             high=self.N-1,
@@ -186,11 +186,11 @@ class MPSPEnv(gym.Env):
             )
 
         # Masking out empty columns
-        # remove_mask = self.column_counts > 0
+        remove_mask = self.column_counts > 0
 
-        # mask = np.concatenate((add_mask, remove_mask), dtype=np.int8)
+        mask = np.concatenate((add_mask, remove_mask), dtype=np.int8)
 
-        return add_mask
+        return mask
 
     def close(self):
         pass
