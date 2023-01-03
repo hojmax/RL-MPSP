@@ -37,9 +37,7 @@ struct state
 
 void step(int action, struct state *state);
 
-struct state *get_random_state(int N, int R, int C, double exponential_constant, int seed, enum remove_restrictions remove_restrictions);
-
-struct state *get_state_from_transportation_matrix(int N, int R, int C, int *transportation_matrix, enum remove_restrictions remove_restrictions);
+struct state *get_state(int N, int R, int C, double exponential_constant, int seed, enum remove_restrictions remove_restrictions);
 
 void free_state(struct state *state);
 

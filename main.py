@@ -13,10 +13,10 @@ import sys
 
 
 # --- Config ---
-tags = ['count LSTM', 'C env', 'authentic matrices']
+tags = ['count LSTM', 'authentic matrices']
 wandb_run_path = None
 train_again = False
-log_wandb = int(sys.argv[4]) if len(sys.argv) > 4 else True
+log_wandb = int(sys.argv[4]) if len(sys.argv) > 4 else False
 show_progress = int(sys.argv[5]) if len(sys.argv) > 5 else True
 
 config = {
@@ -30,9 +30,9 @@ config = {
     'CONTAINER_EMBEDDING_SIZE': 16,
     'OUTPUT_HIDDEN': 256,
     'INTERNAL_HIDDEN': 64,
-    'LSTM_HIDDEN': 64,
+    'LSTM_HIDDEN': 100,
     # Training
-    'TOTAL_TIMESTEPS': 15_000,
+    'TOTAL_TIMESTEPS': 12e6,
     '_ENT_COEF': 0,
     '_LEARNING_RATE': 1.5e-4,
     '_N_EPOCHS': 3,
@@ -86,10 +86,10 @@ n_envs = int(sys.argv[1]) if len(sys.argv) > 1 else 8
 
 base_env = make_vec_env(
     lambda: MPSPEnv(
-        rows=config['ROWS'],
-        columns=config['COLUMNS'],
-        n_ports=config['N_PORTS'],
-        remove_restrictions="remove_only_when_blocking"
+        config['ROWS'],
+        config['COLUMNS'],
+        config['N_PORTS'],
+        "remove_all"
     ),
     n_envs=n_envs,
 )
@@ -112,6 +112,7 @@ if wandb_run_path:
 else:
     model = MaskablePPO(
         policy='MultiInputPolicy',
+        # Starting with no remove
         env=base_env,
         verbose=0,
         tensorboard_log=f"runs/{run.id}" if create_new_run else None,
@@ -124,6 +125,7 @@ else:
         gamma=config['_GAMMA'],
         device=device,
     )
+    print('Training with base remove...')
     model.learn(
         total_timesteps=config['TOTAL_TIMESTEPS'],
         callback=WandbCallback(
@@ -131,8 +133,6 @@ else:
         ) if create_new_run else None,
         progress_bar=show_progress,
     )
-
-base_env.close()
 
 eval_data = get_benchmarking_data('rl-mpsp-benchmark/set_2')
 eval_data = [
@@ -151,17 +151,16 @@ paper_seeds = [e['seed'] for e in eval_data]
 for e in tqdm(eval_data, desc='Evaluating'):
     # Creating seperate env for evaluation
     env = MPSPEnv(
-        rows=config['ROWS'],
-        columns=config['COLUMNS'],
-        n_ports=config['N_PORTS'],
-        remove_restrictions="remove_only_when_blocking"
+        config['ROWS'],
+        config['COLUMNS'],
+        config['N_PORTS']
     )
     env = gym.wrappers.RecordVideo(
         env, video_folder=f'video/N{config["N_PORTS"]}_R{config["ROWS"]}_C{config["COLUMNS"]}_S{e["seed"]}')
 
     total_reward = 0
     obs = env.reset(
-        # transportation_matrix=e['transportation_matrix'].astype(np.int32)
+        transportation_matrix=e['transportation_matrix']
     )
 
     done = False
@@ -183,7 +182,6 @@ for e in tqdm(eval_data, desc='Evaluating'):
         total_reward += reward
 
     eval_rewards.append(total_reward)
-    env.close()
 
 if create_new_run:
     eval = {
