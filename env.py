@@ -46,36 +46,15 @@ class MPSPEnv(gym.Env):
             shape=(self.R, self.C),
             dtype=np.int32
         )
-        container_def = spaces.Box(
-            low=0,
-            high=self.N,
-            shape=(1,),
-            dtype=np.int32
-        )
         transportation_matrix_def = spaces.Box(
             low=0,
             high=np.iinfo(np.int32).max,
             shape=(self.N, self.N),
             dtype=np.int32
         )
-        port_def = spaces.Box(
-            low=0,
-            high=self.N,
-            shape=(1,),
-            dtype=np.int32
-        )
-        will_block_def = spaces.Box(
-            low=0,
-            high=1,
-            shape=(self.C,),
-            dtype=np.int32
-        )
         self.observation_space = spaces.Dict({
             'bay_matrix': bay_matrix_def,
-            'container': container_def,
             'transportation_matrix': transportation_matrix_def,
-            'port': port_def,
-            'will_block': will_block_def
         })
         self.transportation_matrix = None
         self.bay_matrix = None
@@ -596,15 +575,9 @@ class MPSPEnv(gym.Env):
 
     def _get_observation(self):
 
-        next_container = self._get_last_destination_container()
-        will_block = self._get_will_block()
-
         return {
             'bay_matrix': self.bay_matrix,
-            'container': [next_container],
             'transportation_matrix': self.transportation_matrix,
-            'port': [self.port],
-            'will_block': will_block,
         }
 
     def _get_will_block(self):

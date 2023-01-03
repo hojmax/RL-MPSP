@@ -21,23 +21,65 @@ class TransportationEncoder(nn.Module):
         super().__init__()
         self.n_ports = n_ports
         self.hidden_size = hidden_size
-        self.rnn = nn.RNN(
-            n_ports,
-            hidden_size,
-            device=device,
-            batch_first=True
-        )
+        # self.linear = nn.Linear(
+        #     n_ports,
+        #     hidden_size,
+        #     device=device
+        # )
         self.device = device
 
     def forward(self, x):
         x = x.to(self.device).float()
 
-        # Pass through RNN
-        # Hidden defaults to zero
-        _, hidden = self.rnn(x)
+        nonzero_indices = x.nonzero(as_tuple=True)
+        
+        port = nonzero_indices[1].min()
 
-        # Hidden has shape (1, batch_size, hidden_size)
-        return hidden.squeeze(0)
+        # Extract the relevant part of the matrix
+        x = x[:, port:, :]
+
+        # Flatten
+        x = x.flatten(1)
+
+        # Pad with zeros to have size n_ports * n_ports
+        x = torch.nn.functional.pad(
+            x,
+            (0, port * self.n_ports)
+        )
+
+        return x
+
+
+class BayEncoder(nn.Module):
+    def __init__(
+        self,
+        rows,
+        internal_hidden,
+        device='cpu',
+    ):
+        super().__init__()
+        self.model = nn.Sequential(
+                    # We want to encode columns, not rows
+                    Transpose(),
+                    # Flatten the embedding dimension, keep batch and column
+                    nn.Flatten(2),
+                    nn.Linear(
+                        rows,
+                        internal_hidden,
+                        device=device
+                    ),
+                    nn.Tanh(),
+                    nn.Flatten()
+                )
+        self.device = device
+
+    def forward(self, x):
+        x = x.to(self.device).float()
+
+        # Flatten the embedding dimension, keep batch and column
+        x = x.flatten(1)
+        return x
+        # return self.model(x)
 
 
 class ToLong(nn.Module):
@@ -87,75 +129,20 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
             if key == 'bay_matrix':
                 rows = subspace.shape[0]
                 cols = subspace.shape[1]
-                extractors[key] = nn.Sequential(
-                    # Long is required for embedding
-                    ToLong(),
-                    # We want to encode columns, not rows
-                    Transpose(),
-                    self.Container_embedding,
-                    # Flatten the embedding dimension, keep batch and column
-                    nn.Flatten(2),
-                    nn.Linear(
-                        rows * container_embedding_size,
-                        internal_hidden,
-                        device=device
-                    ),
-                    nn.Tanh(),
-                    nn.Flatten()
+                extractors[key] = BayEncoder(
+                    rows,
+                    internal_hidden,
+                    device=device
                 )
-                total_concat_size += cols * internal_hidden
-            elif key == 'container':
-                extractors[key] = nn.Sequential(
-                    # Long is required for embedding
-                    ToLong(),
-                    self.Container_embedding,
-                    nn.Tanh(),
-                    nn.Flatten()
-                )
-                total_concat_size += container_embedding_size
-            elif key == 'port':
-                extractors[key] = nn.Sequential(
-                    # Long is required for embedding
-                    ToLong(),
-                    self.Container_embedding,
-                    nn.Tanh(),
-                    nn.Flatten()
-                )
-                total_concat_size += container_embedding_size
+                total_concat_size += cols * rows
+                # total_concat_size += cols * internal_hidden
             elif key == 'transportation_matrix':
-                # extractors[key] = TransportationEncoder(
-                #     n_ports,
-                #     internal_hidden,
-                #     device=device
-                # )
-                extractors[key] = nn.Sequential(
-                    ToFloat(),
-                    nn.Linear(
-                        subspace.shape[1],
-                        internal_hidden,
-                        device=device
-                    ),
-                    nn.Tanh(),
-                    nn.Flatten(),
-                    nn.Linear(
-                        internal_hidden * subspace.shape[0],
-                        internal_hidden,
-                        device=device
-                    ),
-                    nn.Tanh()
+                extractors[key] = TransportationEncoder(
+                    n_ports,
+                    internal_hidden,
+                    device=device
                 )
-                total_concat_size += internal_hidden
-            elif key == 'will_block':
-                extractors[key] = nn.Sequential(
-                    ToFloat(),
-                    nn.Linear(
-                        subspace.shape[0],
-                        internal_hidden,
-                        device=device
-                    ),
-                    nn.Tanh(),
-                )
-                total_concat_size += internal_hidden
+                total_concat_size += n_ports * n_ports
 
         self.extractors = nn.ModuleDict(extractors)
 
@@ -173,6 +160,7 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
 
     def forward(self, observations):
         encoded_tensor_list = []
+
 
         # self.extractors contain nn.Modules that do all the processing.
         for key, extractor in self.extractors.items():

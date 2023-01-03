@@ -12,7 +12,7 @@ import sys
 
 
 # --- Config ---
-tags = ['rnn']
+tags = ['simple','authentic matrices']
 wandb_run_path = None
 train_again = True
 log_wandb = True
@@ -115,7 +115,7 @@ if train_again or not wandb_run_path:
             model_save_path=f"models/{run.id}",
             model_save_freq=config['TOTAL_TIMESTEPS'] // 4,
         ) if create_new_run else None,
-        # progress_bar=True,
+        progress_bar=True,
     )
 
 eval_data = get_benchmarking_data('rl-mpsp-benchmark/set_2')
