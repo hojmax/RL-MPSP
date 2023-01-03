@@ -31,23 +31,34 @@ class TransportationEncoder(nn.Module):
     def forward(self, x):
         x = x.to(self.device).float()
 
-        nonzero_indices = x.nonzero(as_tuple=True)
-        
-        port = nonzero_indices[1].min()
+        remaining_ports = x.sum(1).argmax(1)
+        ports = self.n_ports - remaining_ports - 1
 
-        # Extract the relevant part of the matrix
-        x = x[:, port:, :]
-
-        # Flatten
-        x = x.flatten(1)
-
-        # Pad with zeros to have size n_ports * n_ports
-        x = torch.nn.functional.pad(
-            x,
-            (0, port * self.n_ports)
+        output = torch.zeros(
+            x.shape[0],
+            self.n_ports * self.n_ports,
+            device=self.device
         )
 
-        return x
+        for i, port in enumerate(ports):
+            batch = x[i]
+
+            # Remove the ports that already have been visited
+            batch = batch[port:]
+
+            # Flatten the batch
+            batch = batch.flatten()
+
+            # Pad with zeros to have size n_ports * n_ports
+            batch = torch.nn.functional.pad(
+                batch,
+                (0, port * self.n_ports)
+            )
+
+            # Add to output
+            output[i] = batch
+
+        return output
 
 
 class BayEncoder(nn.Module):
