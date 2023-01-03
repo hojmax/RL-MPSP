@@ -36,13 +36,12 @@ class State(Structure):
 
 
 c_helpers = ctypes.CDLL('./env_helpers.so')
-c_helpers.get_empty_state.restype = POINTER(State)
-c_helpers.initialize_random_state.restype = None
-c_helpers.initialize_state_from_transportation_matrix.restype = None
-c_helpers.step.restype = None
-c_helpers.free_state.restype = None
+c_helpers.get_random_state.restype = POINTER(State)
+c_helpers.get_state_from_transportation_matrix.restype = POINTER(State)
 c_helpers.get_blocking.restype = POINTER(c_int)
 c_helpers.free_blocking.restype = None
+c_helpers.step.restype = None
+c_helpers.free_state.restype = None
 
 
 class text_type(Enum):
@@ -67,14 +66,6 @@ class MPSPEnv(gym.Env):
         self.C = columns
         self.N = n_ports
         self.exponential_constant = 0.25  # Also called 'lambda'
-        # Caller must free the state once it is terminated
-        # This is done using self.close()
-        self.state = c_helpers.get_empty_state(
-            c_int(self.N),
-            c_int(self.R),
-            c_int(self.C),
-            c_int(self.remove_restrictions)
-        )
         self.screen = None
         self.colors = None
         self.probs = None
@@ -136,17 +127,24 @@ class MPSPEnv(gym.Env):
         """Reset the state of the environment to an initial state"""
         self.seed(seed)
 
+        # Caller should free the state once it is terminated
         if transportation_matrix is None:
-            self.state = c_helpers.initialize_random_state(
-                self.state,
+            self.state = c_helpers.get_random_state(
+                c_int(self.N),
+                c_int(self.R),
+                c_int(self.C),
                 c_double(self.exponential_constant),
                 c_int(self.c_seed),
+                c_int(self.remove_restrictions)
             )
         else:
             assert transportation_matrix.dtype == np.int32, "Transportation matrix must be of type np.int32"
-            self.state = c_helpers.initialize_state_from_transportation_matrix(
-                self.state,
+            self.state = c_helpers.get_state_from_transportation_matrix(
+                c_int(self.N),
+                c_int(self.R),
+                c_int(self.C),
                 transportation_matrix.ctypes.data_as(POINTER(c_int)),
+                c_int(self.remove_restrictions),
             )
 
         # ----- NOTE: The following numpy arrays are views of the underlying C arrays (not a copy)
