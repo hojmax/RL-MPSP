@@ -14,6 +14,7 @@ print("The command q will quit the game")
 
 
 env.print()
+print()
 sum_reward = 0
 
 while True:
@@ -38,3 +39,9 @@ while True:
         state, reward, is_terminated, info = env.step(action)
         sum_reward += reward
         env.print()
+        print("Reward: {}".format(reward))
+        print("Sum reward: {}".format(sum_reward))
+        print("Is terminated: {}".format(is_terminated))
+        print("Mask: {}".format(info["mask"]))
+        print("Will block: {}".format(state["will_block"]))
+        print()

@@ -1,45 +1,13 @@
-import os
-import gym
-import ctypes
-import pygame
-from ctypes import POINTER, c_int, c_double, Structure
+import color_helpers
 from typing import Optional
 from enum import Enum
+import pygame
+import gym
 from gym import spaces
-import color_helpers
 import numpy as np
+import os
 # Should be before pygame import (may be out of order because of autoformatting)
 os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
-
-
-class State(Structure):
-    _fields_ = [
-        ("N", c_int),
-        ("R", c_int),
-        ("C", c_int),
-        ("port", c_int),
-        ("bay_matrix", POINTER(c_int)),
-        ("transportation_matrix", POINTER(c_int)),
-        ("loading_list", POINTER(c_int)),
-        ("column_counts", POINTER(c_int)),
-        ("min_container_per_column", POINTER(c_int)),
-        ("containers_per_port", POINTER(c_int)),
-        ("mask", POINTER(c_int)),
-        ("loading_list_length", c_int),
-        ("loading_list_padded_length", c_int),
-        ("is_terminal", c_int),
-        ("last_reward", c_int),
-        ("last_action", c_int),
-        ("sum_reward", c_int),
-    ]
-
-
-c_helpers = ctypes.CDLL('./env_helpers.so')
-c_helpers.get_state.restype = POINTER(State)
-c_helpers.get_blocking.restype = POINTER(c_int)
-c_helpers.free_blocking.restype = None
-c_helpers.step.restype = None
-c_helpers.free_state.restype = None
 
 
 class text_type(Enum):
@@ -48,18 +16,52 @@ class text_type(Enum):
     SUBHEADLINE = 28
 
 
+class NoRemoveWrapper(gym.Wrapper):
+    def __init__(self, env):
+        super().__init__(env)
+        self.logic_mask = np.concatenate(
+            (
+                np.ones(self.env.C),
+                np.zeros(self.env.C)
+            )
+        )
+
+    def action_masks(self):
+        mask = self.env.action_masks()
+        mask = np.logical_and(mask, self.logic_mask)
+        return mask
+
+
+class StrategicRemoveWrapper(gym.Wrapper):
+    def __init__(self, env):
+        super().__init__(env)
+        self.ones = np.ones(self.env.C)
+
+    def action_masks(self):
+        next_container = self.env.loading_list[0][1]
+        will_block = self.env.min_value_per_column < next_container
+        logical_mask = np.concatenate(
+            (self.ones, will_block),
+        )
+        env_mask = self.env.action_masks()
+        mask = np.logical_and(env_mask, logical_mask)
+        return mask
+
+
 class MPSPEnv(gym.Env):
     """Environment for the Multi Port Shipping Problem"""
 
-    def __init__(self, rows, columns, n_ports, render_mode: Optional[str] = None):
+    def __init__(self, rows, columns, n_ports, render_mode: Optional[str] = None,):
         super(MPSPEnv, self).__init__()
         self.R = rows
         self.C = columns
         self.N = n_ports
-        self.exponential_constant = 0.25  # Also called 'lambda'
+        self.capacity = self.R * self.C
         self.screen = None
         self.colors = None
         self.probs = None
+        self.prev_action = None
+        self.reward = 0
         self.render_mode = render_mode
         self.metadata = {
             "render.modes": [
@@ -81,6 +83,12 @@ class MPSPEnv(gym.Env):
             shape=(1,),
             dtype=np.int32
         )
+        will_block_def = spaces.Box(
+            low=0,
+            high=1,
+            shape=(self.C,),
+            dtype=np.int32
+        )
         loading_list_def = spaces.Box(
             low=0,
             # The count can be at most be C*R
@@ -99,59 +107,48 @@ class MPSPEnv(gym.Env):
         self.observation_space = spaces.Dict({
             'bay_matrix': bay_matrix_def,
             'port': port_def,
+            'will_block': will_block_def,
             'loading_list': loading_list_def,
             'loading_list_length': loading_list_length_def,
         })
+        self.transportation_matrix = None
+        self.bay_matrix = None
+        self.column_counts = None
+        self.port = None
+        self.is_terminated = False
+        self.virtual_R = None
+        self.virtual_C = None
+        self.virtual_Capacity = None
+
+    def set_virtual_dimensions(self, virtual_R, virtual_C):
+        """Limits the number of rows and columns that are accessible to the agent"""
+        assert virtual_R <= self.R, "Virtual R must be smaller than R"
+        assert virtual_C <= self.C, "Virtual C must be smaller than C"
+        assert virtual_R > 0, "Virtual R must be strictly positive"
+        assert virtual_C > 0, "Virtual C must be strictly positive"
+        self.virtual_R = virtual_R
+        self.virtual_C = virtual_C
+        self.virtual_Capacity = self.virtual_R * self.virtual_C
 
     def seed(self, seed=None):
         np.random.seed(seed)
-        if seed is None:
-            self.c_seed = np.random.randint(
-                0,
-                np.iinfo(np.int32).max,
-            )
-        else:
-            self.c_seed = seed
 
     def reset(self, transportation_matrix=None, seed=None):
         """Reset the state of the environment to an initial state"""
         self.seed(seed)
-
-        # Caller should free the state once it is terminated
-        self.state = c_helpers.get_state(
-            c_int(self.N),
-            c_int(self.R),
-            c_int(self.C),
-            c_double(self.exponential_constant),
-            c_int(self.c_seed),
+        self.loading_list = []
+        self.transportation_matrix = (
+            self._get_mixed_distance_transportation_matrix(self.N)
+            if transportation_matrix is None else transportation_matrix
         )
-
-        # ----- NOTE: The following numpy arrays are views of the underlying C arrays (not a copy)
-        self.bay_matrix = np.ctypeslib.as_array(
-            self.state.contents.bay_matrix,
-            shape=(self.R, self.C),
-        )
-        self.loading_list = np.ctypeslib.as_array(
-            self.state.contents.loading_list,
-            shape=(self.state.contents.loading_list_padded_length, 2),
-        )
-        self.action_mask = np.ctypeslib.as_array(
-            self.state.contents.mask,
-            shape=(2 * self.C,),
-        )
-        self.transportation_matrix = np.ctypeslib.as_array(
-            self.state.contents.transportation_matrix,
-            shape=(self.N, self.N),
-        )
-        self.column_counts = np.ctypeslib.as_array(
-            self.state.contents.column_counts,
-            shape=(self.C,),
-        )
-        self.min_container_per_column = np.ctypeslib.as_array(
-            self.state.contents.min_container_per_column,
-            shape=(self.C,),
-        )
-        # -----
+        self._fill_loading_list()
+        self.bay_matrix = np.zeros((self.R, self.C), dtype=np.int32)
+        self.column_counts = np.zeros(self.C, dtype=np.int32)
+        # Initialize to max values
+        self.min_value_per_column = np.full(self.C, np.iinfo(np.int32).max)
+        self.port = 0
+        self.reward = 0
+        self.is_terminated = False
 
         return self._get_observation()
 
@@ -163,50 +160,84 @@ class MPSPEnv(gym.Env):
             The first C actions are for adding containers
             The last C actions are for removing containers
         """
-        c_helpers.step(c_int(action), self.state)
-        is_terminal = self.state.contents.is_terminal
-        reward = self.state.contents.last_reward
-        observation = self._get_observation()
+        assert not self.is_terminated, "Environment is terminated"
 
-        if is_terminal:
-            self.close()
+        should_add = action < self.C
+        reward = 0
+
+        if should_add:
+            j = action
+            i = self.R - self.column_counts[j] - 1
+
+            assert self.column_counts[j] < self.R, "Cannot add containers to full columns"
+
+            reward += self._add_container(i, j)
+        else:
+            j = action - self.C
+            i = self.R - self.column_counts[j]
+
+            assert self.column_counts[
+                action - self.C
+            ] > 0, "Cannot remove containers from empty columns"
+
+            reward += self._remove_container(i, j)
+
+        # Port is zero indexed
+        self.is_terminated = self.port+1 == self.N
+
+        info = {
+            "mask": self.action_masks()
+        }
+
+        self.reward += reward
 
         return (
-            observation,
+            self._get_observation(),
             reward,
-            is_terminal,
-            {}
+            self.is_terminated,
+            info
         )
 
     def action_masks(self):
         """Returns a mask for the actions (True if the action is valid, False otherwise)."""
-        return self.action_mask.copy()
+
+        # Masking out full columns
+        add_mask = (
+            self.column_counts < self.R
+            if self.virtual_R is None
+            else self.column_counts < self.virtual_R
+        )
+
+        if self.virtual_C is not None:
+            # Masking out columns that are not accessible
+            add_mask = np.logical_and(
+                add_mask,
+                # Can only use first virtual_C columns
+                np.arange(self.C) < self.virtual_C
+            )
+
+        # Masking out empty columns
+        remove_mask = self.column_counts > 0
+
+        mask = np.concatenate((add_mask, remove_mask), dtype=np.int8)
+
+        return mask
 
     def close(self):
-        """Free the memory allocated in C"""
-        c_helpers.free_state(self.state)
+        pass
 
     def print(self):
-        print(f'Port: {self.state.contents.port}')
+        print(f'Port: {self.port}')
         print('Bay matrix:')
         print(self.bay_matrix)
         print('Transportation matrix:')
         print(self.transportation_matrix)
         print('Column counts:')
         print(self.column_counts)
-        print('Min container per column:')
-        print(self.min_container_per_column)
+        print('Min value per column:')
+        print(self.min_value_per_column)
         print('Loading list:')
         print(self.loading_list)
-        print("Reward:")
-        print(self.state.contents.last_reward)
-        print("Sum reward:")
-        print(self.state.contents.sum_reward)
-        print("Is terminated:")
-        print(self.state.contents.is_terminal)
-        print("Mask:")
-        print(self.action_mask)
-        print()
 
     def render(self, mode='human'):
 
@@ -239,7 +270,7 @@ class MPSPEnv(gym.Env):
         PADDING = 20
 
         # Render current port
-        self._render_text(f'Port: {self.state.contents.port}, Reward: {self.state.contents.sum_reward}', pos=(
+        self._render_text(f'Port: {self.port}, Reward: {self.reward}', pos=(
             W/2, PADDING), font_size=text_type.HEADLINE)
 
         # Render the bay matrix and transportation matrix
@@ -277,7 +308,7 @@ class MPSPEnv(gym.Env):
         """Renders the action probabilities"""
         x, y = pos
 
-        if self.probs is None or self.state.contents.last_action == -1:
+        if self.probs is None or self.prev_action is None:
             return
 
         # Draw to rows of probabilities. One for adding and one for removing.
@@ -309,7 +340,7 @@ class MPSPEnv(gym.Env):
             )
 
             # Draw the border if it is the action
-            if i == self.state.contents.last_action:
+            if i == self.prev_action:
                 pygame.draw.rect(
                     self.surface,
                     (0, 0, 0),
@@ -405,11 +436,6 @@ class MPSPEnv(gym.Env):
                         font_size=13
                     )
 
-        # Free the memory
-        c_helpers.free_blocking(
-            blocking_containers.ctypes.data_as(POINTER(c_int))
-        )
-
     def _render_transportation_matrix(self, cell_size, pos=(0, 0)):
         """Renders the transportation matrix"""
 
@@ -469,6 +495,70 @@ class MPSPEnv(gym.Env):
         text_rect = text_surface.get_rect(center=pos)
         self.surface.blit(text_surface, text_rect)
 
+    def _remove_container(self, i, j):
+        """Removes container from bay and returns delta reward"""
+
+        # Update state
+        container = self.bay_matrix[i, j]
+        self.bay_matrix[i, j] = 0
+
+        # Add to beginning of loading list
+        if self.loading_list[0][1] == container:
+            self.loading_list[0][0] += 1
+        else:
+            self.loading_list.insert(0, [1, container])
+
+        # Check if min_value_per_column needs to be checked/updated
+        if container == self.min_value_per_column[j]:
+            self.min_value_per_column[j] = self.get_min_in_column(j)
+
+        self.transportation_matrix[self.port, container] += 1
+        self.column_counts[j] -= 1
+
+        # Penalize shifting containers
+        return -1
+
+    def _add_container(self, i, j):
+        """Adds container to bay and returns delta reward"""
+
+        delta_reward = 0
+        self.column_counts[j] += 1
+
+        # Find last destination container
+        container = self.loading_list[0][1]
+
+        # Update min_value_per_column
+        self.min_value_per_column[j] = min(
+            self.min_value_per_column[j],
+            container
+        )
+
+        # Update state
+        self.bay_matrix[i, j] = container
+        self.transportation_matrix[self.port, container] -= 1
+
+        # Either:
+        # Remove the first container in the loading list
+        # Decrease the count of the first container in the loading list
+        if self.loading_list[0][0] == 1:
+            self.loading_list.pop(0)
+        else:
+            self.loading_list[0][0] -= 1
+
+        # Check if container is blocking (there exists a container in the same column with a higher destination)
+        # If so, penalize
+        if self.min_value_per_column[j] < container:
+            delta_reward -= 1
+
+        # Sail along for every zero-row
+        while np.sum(self.transportation_matrix[self.port]) == 0:
+            self.port += 1
+            self._offload_containers()
+            if self.port + 1 == self.N:
+                break
+
+        return delta_reward
+
     def _create_image_array(self, screen, size):
         scaled_screen = pygame.transform.smoothscale(screen, size)
         return np.transpose(
@@ -476,20 +566,172 @@ class MPSPEnv(gym.Env):
         )
 
     def _get_blocking(self):
-        """
-        Returns a matrix of blocking containers (1 if blocking, 0 otherwise)
-        Caller should free the memory
-        """
-        return np.ctypeslib.as_array(
-            c_helpers.get_blocking(self.state),
-            shape=(self.R, self.C)
-        )
+        """Returns a matrix of blocking containers (1 if blocking, 0 otherwise)"""
+        blocking_containers = np.zeros((self.R, self.C), dtype=np.int32)
+
+        for j in range(self.C):
+            min_in_column = np.inf
+            for i in range(self.R-1, -1, -1):
+                if self.bay_matrix[i, j] == 0:
+                    break
+                if self.bay_matrix[i, j] < min_in_column:
+                    min_in_column = self.bay_matrix[i, j]
+                if self.bay_matrix[i, j] > min_in_column:
+                    blocking_containers[i, j] = 1
+
+        return blocking_containers
+
+    def _offload_containers(self):
+        """Offloads containers to the port, updates the transportation matrix and returns the number of shifts"""
+        n_blocking_containers = 0
+
+        for j in range(self.C):
+            offloading_column = False
+            for i in range(self.R-1, -1, -1):
+                # We reached top of stack
+                if self.bay_matrix[i, j] == 0:
+                    break
+
+                # If true, we must offload this container and all containers above it
+                if self.bay_matrix[i, j] == self.port:
+                    offloading_column = True
+
+                if not offloading_column:
+                    continue
+
+                if self.bay_matrix[i, j] != self.port:
+                    n_blocking_containers += 1
+                    # Add container back into transportation matrix
+                    destination_port = self.bay_matrix[i, j]
+                    self.transportation_matrix[
+                        self.port,
+                        destination_port
+                    ] += 1
+
+                self.bay_matrix[i, j] = 0
+                self.column_counts[j] -= 1
+
+        # Rebuild min_value_per_column, as we dont know which containers were removed
+        self.min_value_per_column = np.array([
+            self.get_min_in_column(i) for i in range(self.C)
+        ])
+
+        # Rebuild load list
+        self.loading_list = []
+        self._fill_loading_list()
+
+        return n_blocking_containers
+
+    def get_min_in_column(self, j):
+        """Returns the minimum value in column j (excluding zeros). If all values are zero, returns max int"""
+        non_zero_values = self.bay_matrix[:, j][self.bay_matrix[:, j] > 0]
+        if len(non_zero_values) == 0:
+            return np.iinfo(np.int32).max
+        else:
+            return np.min(non_zero_values)
 
     def _get_observation(self):
+        if len(self.loading_list) == 0:
+            # Last state, so no block
+            will_block = np.zeros(self.C, dtype=np.int32)
+            padded_loading_list = np.zeros(
+                self.observation_space['loading_list'].shape,
+            )
+        else:
+            next_container = self.loading_list[0][1]
+            will_block = self.min_value_per_column < next_container
+            padded_loading_list = np.pad(
+                self.loading_list,
+                # Pad with zeros to correct shape
+                (
+                    (0, self.observation_space['loading_list'].shape[0] - \
+                     len(self.loading_list)),
+                    (0, 0)
+                ),
+                'constant'
+            )
+
         return {
-            # Copy since the ndarrays are views
-            'bay_matrix': self.bay_matrix.copy(),
-            'port': [self.state.contents.port],
-            'loading_list': self.loading_list.copy(),
-            'loading_list_length': [self.state.contents.loading_list_length],
+            'bay_matrix': self.bay_matrix,
+            'port': [self.port],
+            'will_block': will_block,
+            'loading_list': padded_loading_list,
+            'loading_list_length': [len(self.loading_list)],
         }
+
+    def _get_mixed_distance_transportation_matrix(self, N):
+        """Generates a feasible transportation matrix (mixed distance)"""
+        ordering = []
+
+        for i in range(N-1):
+            ordering.append(np.arange(N-1, i, -1))
+
+        return self._get_transportation_matrix(N, ordering)
+
+    def _get_short_distance_transportation_matrix(self, N):
+        """Generates a feasible transportation matrix (short distance)"""
+        ordering = []
+
+        for i in range(N-1):
+            ordering.append(np.arange(i+1, N))
+
+        return self._get_transportation_matrix(N, ordering)
+
+    def _get_long_distance_transportation_matrix(self, N):
+        """Generates a feasible transportation matrix (long distance)"""
+        ordering = []
+
+        for i in range(N-1):
+            ordering.append(np.arange(N-1, i, -1))
+
+        return self._get_transportation_matrix(N, ordering)
+
+    def _fill_loading_list(self):
+        """Create loading list from transportation matrix"""
+        for i in range(self.N-1):
+            for j in range(self.N-1, i, -1):
+                count = self.transportation_matrix[i, j]
+
+                if count == 0:
+                    continue
+
+                container = j
+                self.loading_list.append([count, container])
+
+    def _get_transportation_matrix(self, N, ordering):
+        """Generates a feasible transportation matrix (short distance)
+
+        Args:
+            N (int): Number of ports
+            ordering (list): List of lists of what ports to add destination containers to first
+        """
+        output = np.zeros((N, N), dtype=np.int32)
+        bay_capacity = (
+            self.capacity
+            if self.virtual_Capacity is None else
+            self.virtual_Capacity
+        )
+
+        exponential_constant = 0.5
+        exponential_multiplier = 10
+
+        for i in range(N-1):
+            for j in ordering[i]:
+                output[i, j] = min(
+                    np.random.exponential(
+                        exponential_constant
+                    ) * exponential_multiplier,
+                    bay_capacity
+                )
+                bay_capacity -= output[i, j]
+
+            if bay_capacity > 0:
+                # Make sure that ship is fully loaded
+                output[i, np.random.choice(ordering[i])] += bay_capacity
+                bay_capacity = 0
+
+            # Offloaded at port
+            for h in range(i+1):
+                bay_capacity += output[h, i+1]
+
+        return output

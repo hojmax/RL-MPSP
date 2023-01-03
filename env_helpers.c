@@ -55,19 +55,26 @@ int *get_zeros(int n)
 // The last c elements are the remove mask
 void insert_mask(struct state *state)
 {
+    int *mask = get_zeros(2 * state->C);
+
     for (int j = 0; j < state->C; j++)
     {
         // Add mask
-        state->mask[j] = state->column_counts[j] < state->R;
+        mask[j] = state->column_counts[j] < state->R;
         // Remove mask
-        state->mask[j + state->C] = state->column_counts[j] > 0;
+        mask[j + state->C] = state->column_counts[j] > 0;
     }
+
+    state->mask = mask;
 }
 
 // Generates the loading list and inserts it into the state
 void insert_loading_list(struct state *state)
 {
+    int upper_triangle_length = state->N * (state->N - 1) / 2;
     int list_index = 0;
+    // 2 * upper_triangle_length because we need to store the count and the container
+    int *list = get_zeros(2 * upper_triangle_length);
 
     // Iterate over the upper triangle of the transportation matrix
     for (int i = 0; i < state->N - 1; i++)
@@ -78,15 +85,16 @@ void insert_loading_list(struct state *state)
             int count = state->transportation_matrix[matrix_index];
             if (count > 0)
             {
-                state->loading_list[2 * list_index] = count;
-                state->loading_list[2 * list_index + 1] = j; // container
+                list[2 * list_index] = count;
+                list[2 * list_index + 1] = j; // container
                 list_index++;
             }
         }
     }
 
-    state->loading_list = state->loading_list;
+    state->loading_list = list;
     state->loading_list_length = list_index;
+    state->loading_list_padded_length = upper_triangle_length;
 }
 
 // Left shifts the loading list (removes first element)
@@ -193,8 +201,6 @@ int offload_containers(struct state *state)
         }
     }
 
-    free(columns_to_min_check);
-
     return n_shifts;
 }
 
@@ -246,6 +252,8 @@ int add_container(int i, int j, struct state *state)
 
 void insert_transportation_matrix(struct state *state, int N, int R, int C, double exponential_constant, int seed)
 {
+    int *matrix = get_zeros(N * N);
+    int *containers_per_port = get_zeros(N);
     int capacity = R * C;
     srand(seed);
     for (int i = 0; i < N - 1; i++)
@@ -259,26 +267,29 @@ void insert_transportation_matrix(struct state *state, int N, int R, int C, doub
             if (j == ordering_length - 1)
             {
                 // Make sure that ship is fully loaded
-                state->transportation_matrix[matrix_index] = capacity;
+                matrix[matrix_index] = capacity;
                 capacity = 0;
             }
             else
             {
                 int random_value = (int)(ran_expo(exponential_constant));
                 // Make sure that the ship is not overfilled
-                state->transportation_matrix[matrix_index] = min(capacity, random_value);
-                capacity -= state->transportation_matrix[matrix_index];
+                matrix[matrix_index] = min(capacity, random_value);
+                capacity -= matrix[matrix_index];
             }
-            state->containers_per_port[i] += state->transportation_matrix[matrix_index];
+            containers_per_port[i] += matrix[matrix_index];
         }
         free(ordering);
 
         // Offload containers
         for (int h = 0; h < i + 1; h++)
         {
-            capacity += state->transportation_matrix[h * N + i + 1];
+            capacity += matrix[h * N + i + 1];
         }
     }
+
+    state->transportation_matrix = matrix;
+    state->containers_per_port = containers_per_port;
 }
 
 // Removes container from bay and returns delta reward
@@ -336,13 +347,6 @@ struct state *get_state(int N, int R, int C, double exponential_constant, int se
     state->bay_matrix = get_zeros(R * C);
     state->column_counts = get_zeros(C);
     state->min_container_per_column = get_zeros(C);
-    state->transportation_matrix = get_zeros(N * N);
-    state->containers_per_port = get_zeros(N);
-    state->mask = get_zeros(2 * C);
-    int upper_triangle_length = state->N * (state->N - 1) / 2;
-    // 2 * upper_triangle_length because we need to store the count and the container
-    state->loading_list = get_zeros(2 * upper_triangle_length);
-    state->loading_list_padded_length = upper_triangle_length;
     // Initialize min_container_per_column to N (max value + 1)
     for (int i = 0; i < C; i++)
     {
@@ -353,7 +357,7 @@ struct state *get_state(int N, int R, int C, double exponential_constant, int se
     insert_mask(state);
     state->is_terminal = 0;
     state->last_reward = 0;
-    state->last_action = -1;
+    state->last_action = 0;
     state->sum_reward = 0;
     return state;
 }
@@ -385,41 +389,8 @@ void step(int action, struct state *state)
     }
     // Update mask
     insert_mask(state);
-
     state->is_terminal = state->port + 1 == state->N;
     state->last_reward = reward;
     state->last_action = action;
     state->sum_reward += reward;
-}
-
-// Returns a matrix of blocking containers (1 if blocking, 0 otherwise)
-int *get_blocking(struct state *state)
-{
-    int *blocking_containers = get_zeros(state->R * state->C);
-    for (int j = 0; j < state->C; j++)
-    {
-        int min_in_column = state->N;
-        for (int i = state->R - 1; i >= 0; i--)
-        {
-            int bay_index = i * state->C + j;
-            if (state->bay_matrix[bay_index] == 0)
-            {
-                break;
-            }
-            if (state->bay_matrix[bay_index] < min_in_column)
-            {
-                min_in_column = state->bay_matrix[bay_index];
-            }
-            if (state->bay_matrix[bay_index] > min_in_column)
-            {
-                blocking_containers[bay_index] = 1;
-            }
-        }
-    }
-    return blocking_containers;
-}
-
-void free_blocking(int *blocking_containers)
-{
-    free(blocking_containers);
 }

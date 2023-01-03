@@ -133,6 +133,17 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
                     device=device
                 )
                 total_concat_size += lstm_hidden
+            elif key == 'will_block':
+                extractors[key] = nn.Sequential(
+                    ToFloat(),
+                    nn.Linear(
+                        subspace.shape[0],
+                        internal_hidden,
+                        device=device
+                    ),
+                    nn.Tanh(),
+                )
+                total_concat_size += internal_hidden
 
         self.extractors = nn.ModuleDict(extractors)
 

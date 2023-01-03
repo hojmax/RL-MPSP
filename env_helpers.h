@@ -32,8 +32,4 @@ struct state *get_state(int N, int R, int C, double exponential_constant, int se
 
 void free_state(struct state *state);
 
-int *get_blocking(struct state *state);
-
-void free_blocking(int *blocking_containers);
-
 #endif
