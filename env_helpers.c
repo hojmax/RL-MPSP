@@ -59,24 +59,8 @@ void insert_mask(struct state *state)
     {
         // Add mask
         state->mask[j] = state->column_counts[j] < state->R;
-
         // Remove mask
-        if (state->remove_restrictions == remove_all)
-        {
-            int column_not_empty = state->column_counts[j] > 0;
-            state->mask[j + state->C] = column_not_empty;
-        }
-        else if (state->remove_restrictions == remove_only_when_blocking)
-        {
-            int column_not_empty = state->column_counts[j] > 0;
-            int next_container = state->loading_list[1];
-            int is_blocking = state->min_container_per_column[j] < next_container;
-            state->mask[j + state->C] = column_not_empty && is_blocking;
-        }
-        else if (state->remove_restrictions == no_remove)
-        {
-            state->mask[j + state->C] = 0;
-        }
+        state->mask[j + state->C] = state->column_counts[j] > 0;
     }
 }
 
@@ -342,7 +326,7 @@ void free_state(struct state *state)
     free(state);
 }
 
-struct state *get_state(int N, int R, int C, double exponential_constant, int seed, enum remove_restrictions remove_restrictions)
+struct state *get_state(int N, int R, int C, double exponential_constant, int seed)
 {
     struct state *state = malloc(sizeof(struct state));
     state->N = N;
@@ -351,6 +335,7 @@ struct state *get_state(int N, int R, int C, double exponential_constant, int se
     state->port = 0;
     state->bay_matrix = get_zeros(R * C);
     state->column_counts = get_zeros(C);
+    state->min_container_per_column = get_zeros(C);
     state->transportation_matrix = get_zeros(N * N);
     state->containers_per_port = get_zeros(N);
     state->mask = get_zeros(2 * C);
@@ -358,7 +343,6 @@ struct state *get_state(int N, int R, int C, double exponential_constant, int se
     // 2 * upper_triangle_length because we need to store the count and the container
     state->loading_list = get_zeros(2 * upper_triangle_length);
     state->loading_list_padded_length = upper_triangle_length;
-    state->min_container_per_column = get_zeros(C);
     // Initialize min_container_per_column to N (max value + 1)
     for (int i = 0; i < C; i++)
     {
@@ -371,7 +355,6 @@ struct state *get_state(int N, int R, int C, double exponential_constant, int se
     state->last_reward = 0;
     state->last_action = -1;
     state->sum_reward = 0;
-    state->remove_restrictions = remove_restrictions;
     return state;
 }
 

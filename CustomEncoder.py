@@ -25,7 +25,6 @@ class LoadingListEncoder(nn.Module):
 
     def forward(self, loading_lists, loading_list_lengths):
         loading_lists = loading_lists.to(self.device)
-
         # Add container embedding, batched
         loading_lists = torch.cat([
             loading_lists[:, :, 0].unsqueeze(2),

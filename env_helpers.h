@@ -4,14 +4,6 @@
 #define min(a, b) (a < b ? a : b)
 #define max(a, b) (a > b ? a : b)
 
-// Defines what removals the agent is allowed
-enum remove_restrictions
-{
-    remove_all = 0,
-    remove_only_when_blocking = 1,
-    no_remove = 2
-};
-
 // Contains information about the state of the environment
 struct state
 {
@@ -32,12 +24,11 @@ struct state
     int last_reward;
     int last_action;
     int sum_reward;
-    enum remove_restrictions remove_restrictions;
 };
 
 void step(int action, struct state *state);
 
-struct state *get_state(int N, int R, int C, double exponential_constant, int seed, enum remove_restrictions remove_restrictions);
+struct state *get_state(int N, int R, int C, double exponential_constant, int seed);
 
 void free_state(struct state *state);
 
