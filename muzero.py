@@ -7,7 +7,6 @@ import pickle
 import sys
 import os
 import time
-import wandb
 
 import nevergrad
 import numpy
@@ -131,7 +130,7 @@ class MuZero:
         self.replay_buffer_worker = None
         self.shared_storage_worker = None
 
-    def train(self, log_in_tensorboard=True, wandb_log=True):
+    def train(self, log_in_tensorboard=True):
         """
         Spawn ray workers and launch the training.
 
@@ -140,14 +139,6 @@ class MuZero:
         """
         if log_in_tensorboard or self.config.save_model:
             self.config.results_path.mkdir(parents=True, exist_ok=True)
-        
-        if wandb_log:
-            wandb.login()
-            wandb.init(
-                project="muzero-general",
-                # config=self.config,
-                entity="rl-msps"
-                )
 
         # Manage GPUs
         if 0 < self.num_gpus:
@@ -277,23 +268,6 @@ class MuZero:
         try:
             while info["training_step"] < self.config.training_steps:
                 info = ray.get(self.shared_storage_worker.get_info.remote(keys))
-                wandb.log({
-                    "total_reward": info["total_reward"],
-                    "mean_value": info["mean_value"],
-                    "episode_length": info["episode_length"],
-                    "muzero_reward": info["muzero_reward"],
-                    "opponent_reward": info["opponent_reward"],
-                    "num_played_games": info["num_played_games"],
-                    "training_step": info["training_step"],
-                    "self_played_steps": info["num_played_steps"],
-                    "reanalysed_games": info["num_reanalysed_games"],
-                    "training_steps_per_self_played_step": info["training_step"] / max(1,info["num_played_steps"]),
-                    "learning_rate": info["lr"],
-                    "total_loss": info["total_loss"],
-                    "value_loss": info["value_loss"],
-                    "reward_loss": info["reward_loss"],
-                    "policy_loss": info["policy_loss"],
-                })
                 writer.add_scalar(
                     "1.Total_reward/1.Total_reward",
                     info["total_reward"],
