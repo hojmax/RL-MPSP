@@ -77,39 +77,15 @@ class MPSPEnv(gym.Env):
             shape=(self.R, self.C),
             dtype=np.int32
         )
-        port_def = spaces.Box(
+        transportation_matrix_def = spaces.Box(
             low=0,
-            high=self.N-1,
-            shape=(1,),
-            dtype=np.int32
-        )
-        will_block_def = spaces.Box(
-            low=0,
-            high=1,
-            shape=(self.C,),
-            dtype=np.int32
-        )
-        loading_list_def = spaces.Box(
-            low=0,
-            # The count can be at most be C*R
-            high=self.C*self.R,
-            # Has length n(n-1)/2 because we only need to store the upper triangle
-            # Has width 2 because we need to store the count and destination
-            shape=(self.N*(self.N-1) // 2, 2),
-            dtype=np.int32
-        )
-        loading_list_length_def = spaces.Box(
-            low=0,
-            high=self.N*(self.N-1) / 2,
-            shape=(1,),
+            high=np.iinfo(np.int32).max,
+            shape=(self.N, self.N),
             dtype=np.int32
         )
         self.observation_space = spaces.Dict({
             'bay_matrix': bay_matrix_def,
-            'port': port_def,
-            'will_block': will_block_def,
-            'loading_list': loading_list_def,
-            'loading_list_length': loading_list_length_def,
+            'transportation_matrix': transportation_matrix_def,
         })
         self.transportation_matrix = None
         self.bay_matrix = None
@@ -169,18 +145,20 @@ class MPSPEnv(gym.Env):
             j = action
             i = self.R - self.column_counts[j] - 1
 
-            assert self.column_counts[j] < self.R, "Cannot add containers to full columns"
-
-            reward += self._add_container(i, j)
+            # Cannot add containers to full columns
+            if self.column_counts[j] < self.R:
+                reward += self._add_container(i, j)
+            else:
+                reward -= 1000  # Penalize for invalid action
         else:
             j = action - self.C
             i = self.R - self.column_counts[j]
 
-            assert self.column_counts[
-                action - self.C
-            ] > 0, "Cannot remove containers from empty columns"
-
-            reward += self._remove_container(i, j)
+            # Cannot remove containers from empty columns
+            if self.column_counts[action - self.C] > 0:
+                reward += self._remove_container(i, j)
+            else:
+                reward -= 1000 # Penalize for invalid action
 
         # Port is zero indexed
         self.is_terminated = self.port+1 == self.N
@@ -631,32 +609,10 @@ class MPSPEnv(gym.Env):
             return np.min(non_zero_values)
 
     def _get_observation(self):
-        if len(self.loading_list) == 0:
-            # Last state, so no block
-            will_block = np.zeros(self.C, dtype=np.int32)
-            padded_loading_list = np.zeros(
-                self.observation_space['loading_list'].shape,
-            )
-        else:
-            next_container = self.loading_list[0][1]
-            will_block = self.min_value_per_column < next_container
-            padded_loading_list = np.pad(
-                self.loading_list,
-                # Pad with zeros to correct shape
-                (
-                    (0, self.observation_space['loading_list'].shape[0] - \
-                     len(self.loading_list)),
-                    (0, 0)
-                ),
-                'constant'
-            )
 
         return {
             'bay_matrix': self.bay_matrix,
-            'port': [self.port],
-            'will_block': will_block,
-            'loading_list': padded_loading_list,
-            'loading_list_length': [len(self.loading_list)],
+            'transportation_matrix': self.transportation_matrix,
         }
 
     def _get_mixed_distance_transportation_matrix(self, N):

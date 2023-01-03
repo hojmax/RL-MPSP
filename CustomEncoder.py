@@ -116,34 +116,34 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
                     nn.Flatten()
                 )
                 total_concat_size += cols * internal_hidden
-            elif key == 'port':
-                extractors[key] = nn.Sequential(
-                    # Long is required for embedding
-                    ToLong(),
-                    self.Container_embedding,
-                    nn.Tanh(),
-                    nn.Flatten()
-                )
-                total_concat_size += container_embedding_size
-            elif key == 'loading_list':
-                extractors[key] = LoadingListEncoder(
-                    self.Container_embedding,
-                    container_embedding_size,
-                    lstm_hidden,
-                    device=device
-                )
-                total_concat_size += lstm_hidden
-            elif key == 'will_block':
-                extractors[key] = nn.Sequential(
-                    ToFloat(),
-                    nn.Linear(
-                        subspace.shape[0],
-                        internal_hidden,
-                        device=device
-                    ),
-                    nn.Tanh(),
-                )
-                total_concat_size += internal_hidden
+            # elif key == 'port':
+            #     extractors[key] = nn.Sequential(
+            #         # Long is required for embedding
+            #         ToLong(),
+            #         self.Container_embedding,
+            #         nn.Tanh(),
+            #         nn.Flatten()
+            #     )
+            #     total_concat_size += container_embedding_size
+            # elif key == 'loading_list':
+            #     extractors[key] = LoadingListEncoder(
+            #         self.Container_embedding,
+            #         container_embedding_size,
+            #         lstm_hidden,
+            #         device=device
+            #     )
+            #     total_concat_size += lstm_hidden
+            # elif key == 'will_block':
+            #     extractors[key] = nn.Sequential(
+            #         ToFloat(),
+            #         nn.Linear(
+            #             subspace.shape[0],
+            #             internal_hidden,
+            #             device=device
+            #         ),
+            #         nn.Tanh(),
+            #     )
+            #     total_concat_size += internal_hidden
 
         self.extractors = nn.ModuleDict(extractors)
 
@@ -165,18 +165,18 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
         encoded_tensor_list = []
         debug_print = False
 
-        encoded_tensor_list.append(
-            self.extractors['loading_list'](
-                observations['loading_list'].to(self.device),
-                observations['loading_list_length'].to(self.device),
-            ).to(self.device)
-        )
+        # encoded_tensor_list.append(
+        #     self.extractors['loading_list'](
+        #         observations['loading_list'].to(self.device),
+        #         observations['loading_list_length'].to(self.device),
+        #     ).to(self.device)
+        # )
 
         # self.extractors contain nn.Modules that do all the processing.
         for key, extractor in self.extractors.items():
-            if key == 'loading_list' or key == 'loading_list_length':
-                # We handle these separately
-                continue
+            # if key == 'loading_list' or key == 'loading_list_length':
+            #     # We handle these separately
+            #     continue
 
             if debug_print:
                 print(key)
