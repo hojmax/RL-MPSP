@@ -120,6 +120,153 @@ void insert_loading_list(struct state *state)
     state->loading_list_length = list_index;
 }
 
+// Sort using count sort
+// With n-1 being the maximum value in the array
+void sort_according_to_values(int *values, int *array, int n)
+{
+    int *count = calloc(n, sizeof(int));
+    for (int i = 0; i < n; i++)
+    {
+        count[values[i]]++;
+    }
+
+    for (int i = 1; i < n; i++)
+    {
+        count[i] += count[i - 1];
+    }
+
+    int *output = malloc(n * sizeof(int));
+    for (int i = n - 1; i >= 0; i--)
+    {
+        output[count[values[i]] - 1] = array[i];
+        count[values[i]]--;
+    }
+
+    for (int i = 0; i < n; i++)
+    {
+        array[i] = output[i];
+    }
+    free(count);
+    free(output);
+}
+
+// Takes a N x N array
+// Returns a N x N array with the columns swapped in order
+// The order is lexographical (bottom being most significant)
+// Example:
+// Input
+// 0 0 0 2
+// 0 1 0 2
+// 3 4 0 2
+// 6 7 8 6
+// Output
+// 0 0 0 2
+// 0 1 0 2
+// 0 4 3 2
+// 8 7 6 6
+int *sort_columns(int *array, int n)
+{
+    // int *test_order = malloc(n * sizeof(int));
+    // int *test_values = malloc(n * sizeof(int));
+    // int test[] = {3, 1, 0, 2};
+    // for (int k = 0; k < 10; k++)
+    // {
+    //     for (int i = 0; i < n; i++)
+    //     {
+    //         test_order[i] = i;
+    //         test_values[i] = test[i];
+    //         // random_int(0, n);
+    //     }
+    //     printf("Test values: ");
+    //     for (int i = 0; i < 4; i++)
+    //     {
+    //         printf("%d ", test_values[i]);
+    //     }
+    //     printf("\n");
+    //     printf("Test order: ");
+    //     for (int i = 0; i < 4; i++)
+    //     {
+    //         printf("%d ", test_order[i]);
+    //     }
+    //     printf("\n");
+    //     sort_according_to_values(test_values, test_order, 4);
+    //     printf("Test order: ");
+    //     for (int i = 0; i < 4; i++)
+    //     {
+    //         printf("%d ", test_order[i]);
+    //     }
+    //     printf("\n\n\n");
+    // }
+
+    int *column_order = malloc(n * sizeof(int));
+    // Starts with 0 to n-1, as the current order
+    for (int i = 0; i < n; i++)
+    {
+        column_order[i] = i;
+    }
+
+    printf("Input:\n");
+    for (int i = 0; i < n; i++)
+    {
+        for (int j = 0; j < n; j++)
+        {
+            printf("%d ", array[i * n + j]);
+        }
+        printf("\n");
+    }
+    printf("\n");
+
+    for (int i = 0; i < n; i++)
+    {
+        printf("Column order: ");
+        for (int i = 0; i < n; i++)
+        {
+            printf("%d ", column_order[i]);
+        }
+        printf("\n");
+        int some_non_zero_value = 0;
+        int *row_values = malloc(n * sizeof(int));
+        for (int j = 0; j < n; j++)
+        {
+            int value = array[i * n + j];
+            row_values[column_order[j]] = value;
+            if (value > 0)
+            {
+                some_non_zero_value = 1;
+            }
+        }
+        printf("Row values: ");
+        for (int i = 0; i < n; i++)
+        {
+            printf("%d ", row_values[i]);
+        }
+        printf("\n\n");
+        // No need to sort if all values are zero
+        if (some_non_zero_value)
+        {
+            sort_according_to_values(row_values, column_order, n);
+        }
+        free(row_values);
+    }
+    int *output = malloc(n * n * sizeof(int));
+    // Swap colums into new order
+    for (int i = 0; i < n; i++)
+    {
+        for (int j = 0; j < n; j++)
+        {
+            output[i * n + j] = array[i * n + column_order[j]];
+        }
+    }
+    // Print column order
+    for (int i = 0; i < n; i++)
+    {
+        printf("%d ", column_order[i]);
+    }
+    printf("\n");
+    free(column_order);
+    return output;
+}
+
 // Left shifts the loading list (removes first element)
 void left_shift_loading_list(struct state *state)
 {
@@ -275,7 +422,7 @@ int add_container(int i, int j, struct state *state)
     }
 
     // Update mask
-    update_mask_for_column(j, state);
+    update_mask_for_column(state, j);
 
     return delta_reward;
 }
@@ -353,11 +500,12 @@ int remove_container(int i, int j, struct state *state)
         state->min_container_per_column[j] = get_min_in_column(j, state);
     }
 
-    update_mask_for_column(j, state);
+    update_mask_for_column(state, j);
 
     return -1;
 }
 
+// Frees the memory of a state
 void free_state(struct state *state)
 {
     free(state->bay_matrix);
