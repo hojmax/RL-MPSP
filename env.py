@@ -67,6 +67,7 @@ class MPSPEnv(gym.Env):
         self.C = columns
         self.N = n_ports
         self.exponential_constant = 0.25  # Also called 'lambda'
+        self.remove_restrictions = remove_lookup[remove_restrictions]
         # Caller must free the state once it is terminated
         # This is done using self.close()
         self.state = c_helpers.get_empty_state(
@@ -78,7 +79,6 @@ class MPSPEnv(gym.Env):
         self.screen = None
         self.colors = None
         self.probs = None
-        self.remove_restrictions = remove_lookup[remove_restrictions]
         self.render_mode = render_mode
         self.metadata = {
             "render.modes": [
@@ -86,6 +86,7 @@ class MPSPEnv(gym.Env):
                 "rgb_array",
             ],
         }
+        self.blocking_pointer = None
 
         self.action_space = spaces.Discrete(2 * self.C)
         bay_matrix_def = spaces.Box(
@@ -137,14 +138,16 @@ class MPSPEnv(gym.Env):
         self.seed(seed)
 
         if transportation_matrix is None:
-            self.state = c_helpers.initialize_random_state(
+            # Initialize in place
+            c_helpers.initialize_random_state(
                 self.state,
                 c_double(self.exponential_constant),
                 c_int(self.c_seed),
             )
         else:
             assert transportation_matrix.dtype == np.int32, "Transportation matrix must be of type np.int32"
-            self.state = c_helpers.initialize_state_from_transportation_matrix(
+            # Initialize in place
+            c_helpers.initialize_state_from_transportation_matrix(
                 self.state,
                 transportation_matrix.ctypes.data_as(POINTER(c_int)),
             )
@@ -158,7 +161,7 @@ class MPSPEnv(gym.Env):
             self.state.contents.loading_list,
             shape=(self.state.contents.loading_list_padded_length, 2),
         )
-        self.action_mask = np.ctypeslib.as_array(
+        self.mask = np.ctypeslib.as_array(
             self.state.contents.mask,
             shape=(2 * self.C,),
         )
@@ -204,12 +207,14 @@ class MPSPEnv(gym.Env):
 
     def action_masks(self):
         """Returns a mask for the actions (True if the action is valid, False otherwise)."""
-        return self.action_mask.copy()
+        return self.mask.copy()
 
     def close(self):
         """Free the memory allocated in C"""
-        print('Closed environment')
         c_helpers.free_state(self.state)
+
+        if self.blocking_pointer is not None:
+            c_helpers.free_blocking(self.blocking_pointer)
 
     def print(self):
         print('Min container per column:')
@@ -228,7 +233,7 @@ class MPSPEnv(gym.Env):
         print(self.containers_per_port)
         print(f'Port: {self.state.contents.port}')
         print("Mask:")
-        print(self.action_mask)
+        print(self.mask)
         print('Transportation matrix:')
         print(self.transportation_matrix)
         print('Bay matrix:')
@@ -319,7 +324,7 @@ class MPSPEnv(gym.Env):
 
         for i, prob in enumerate(probs):
             prob = prob*100
-            if not self.action_mask[i]:
+            if not self.mask[i]:
                 color = 'white'
             else:
                 color = gradient[int(prob)]
@@ -392,8 +397,7 @@ class MPSPEnv(gym.Env):
         self._render_text(f'Bay', pos=(center_x, y))
 
         text_offset = 15
-        # blocking_containers = self._get_blocking()
-        blocking_containers = np.zeros((self.R, self.C))
+        blocking_containers = self._get_blocking()
 
         # Draw the grid lines and the containers
         for i in range(self.R):
@@ -434,11 +438,6 @@ class MPSPEnv(gym.Env):
                              text_offset + i * cell_size + cell_size/4),
                         font_size=13
                     )
-
-        # Free the memory
-        c_helpers.free_blocking(
-            blocking_containers.ctypes.data_as(POINTER(c_int))
-        )
 
     def _render_transportation_matrix(self, cell_size, pos=(0, 0)):
         """Renders the transportation matrix"""
@@ -508,12 +507,17 @@ class MPSPEnv(gym.Env):
     def _get_blocking(self):
         """
         Returns a matrix of blocking containers (1 if blocking, 0 otherwise)
-        Caller should free the memory
+        Automatically frees the memory
         """
+        if self.blocking_pointer is not None:
+            c_helpers.free_blocking(self.blocking_pointer)
+
+        self.blocking_pointer = c_helpers.get_blocking(self.state)
+
         return np.ctypeslib.as_array(
-            c_helpers.get_blocking(self.state),
+            self.blocking_pointer,
             shape=(self.R, self.C)
-        )
+        ).copy()
 
     def _get_observation(self):
         return {

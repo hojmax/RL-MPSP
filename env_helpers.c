@@ -4,6 +4,15 @@
 #include "env_helpers.h"
 #include <assert.h>
 
+// Fills an array with a value
+void fill_array(int *array, int length, int value)
+{
+    for (int i = 0; i < length; i++)
+    {
+        array[i] = value;
+    }
+}
+
 // Returns a random number from an exponential distribution with parameter lambda
 double ran_expo(double lambda)
 {
@@ -50,6 +59,7 @@ int *get_zeros(int n)
     int *zeros = calloc(n, sizeof(int));
     return zeros;
 }
+
 // Returns a binary array of length 2*c
 // The first c elements are the add mask
 // The last c elements are the remove mask
@@ -95,7 +105,7 @@ void insert_loading_list(struct state *state)
             if (count > 0)
             {
                 state->loading_list[2 * list_index] = count;
-                state->loading_list[2 * list_index + 1] = j; // container
+                state->loading_list[2 * list_index + 1] = j; // j is container
                 list_index++;
             }
         }
@@ -131,6 +141,7 @@ void right_shift_loading_list(struct state *state)
     state->loading_list_length += 1;
 }
 
+// Get minimum container in column j
 int get_min_in_column(int j, struct state *state)
 {
     // Initialize min_container to max container + 1
@@ -264,12 +275,18 @@ void insert_transportation_matrix(struct state *state, double exponential_consta
 {
     int capacity = state->R * state->C;
     srand(seed);
+
     for (int i = 0; i < state->N - 1; i++)
     {
         int *ordering = get_ordering(i + 1, state->N);
         int ordering_length = state->N - i - 1;
         for (int j = 0; j < ordering_length; j++)
         {
+            // Nothing more to add to row
+            if (capacity == 0)
+            {
+                break;
+            }
             int k = ordering[j];
             int matrix_index = i * state->N + k;
             if (j == ordering_length - 1)
@@ -342,14 +359,6 @@ void free_state(struct state *state)
     free(state);
 }
 
-void fill_array(int *array, int length, int value)
-{
-    for (int i = 0; i < length; i++)
-    {
-        array[i] = value;
-    }
-}
-
 struct state *get_empty_state(int N, int R, int C, enum remove_restrictions remove_restrictions)
 {
     struct state *state = malloc(sizeof(struct state));
@@ -372,7 +381,7 @@ struct state *get_empty_state(int N, int R, int C, enum remove_restrictions remo
 
 void initialize_random_state(struct state *state, double exponential_constant, int seed)
 {
-    // Reset state
+    // ----- Reset state -----
     fill_array(state->bay_matrix, state->R * state->C, 0);
     fill_array(state->transportation_matrix, state->N * state->N, 0);
     fill_array(state->loading_list, 2 * state->loading_list_padded_length, 0);
@@ -381,10 +390,12 @@ void initialize_random_state(struct state *state, double exponential_constant, i
     fill_array(state->min_container_per_column, state->C, state->N);
     fill_array(state->containers_per_port, state->N, 0);
     fill_array(state->mask, 2 * state->C, 0);
+    // -----------------------
 
     insert_transportation_matrix(state, exponential_constant, seed);
     insert_loading_list(state);
     insert_mask(state);
+    state->port = 0;
     state->is_terminal = 0;
     state->last_reward = 0;
     state->last_action = -1;
@@ -404,8 +415,7 @@ void insert_containers_per_port(struct state *state)
 
 void initialize_state_from_transportation_matrix(struct state *state, int *transportation_matrix)
 {
-
-    // Reset state
+    // ----- Reset state -----
     fill_array(state->bay_matrix, state->R * state->C, 0);
     fill_array(state->transportation_matrix, state->N * state->N, 0);
     fill_array(state->loading_list, 2 * state->loading_list_padded_length, 0);
@@ -414,11 +424,13 @@ void initialize_state_from_transportation_matrix(struct state *state, int *trans
     fill_array(state->min_container_per_column, state->C, state->N);
     fill_array(state->containers_per_port, state->N, 0);
     fill_array(state->mask, 2 * state->C, 0);
+    // -----------------------
 
     state->transportation_matrix = transportation_matrix;
     insert_containers_per_port(state);
     insert_loading_list(state);
     insert_mask(state);
+    state->port = 0;
     state->is_terminal = 0;
     state->last_reward = 0;
     state->last_action = -1;

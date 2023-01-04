@@ -16,7 +16,7 @@ import sys
 tags = ['count LSTM', 'C env', 'authentic matrices']
 wandb_run_path = None
 train_again = False
-log_wandb = int(sys.argv[4]) if len(sys.argv) > 4 else True
+log_wandb = int(sys.argv[4]) if len(sys.argv) > 4 else False
 show_progress = int(sys.argv[5]) if len(sys.argv) > 5 else True
 
 config = {
@@ -89,7 +89,7 @@ base_env = make_vec_env(
         rows=config['ROWS'],
         columns=config['COLUMNS'],
         n_ports=config['N_PORTS'],
-        remove_restrictions="remove_only_when_blocking"
+        remove_restrictions="remove_all"
     ),
     n_envs=n_envs,
 )
@@ -154,7 +154,7 @@ for e in tqdm(eval_data, desc='Evaluating'):
         rows=config['ROWS'],
         columns=config['COLUMNS'],
         n_ports=config['N_PORTS'],
-        remove_restrictions="remove_only_when_blocking"
+        remove_restrictions="remove_all"
     )
     env = gym.wrappers.RecordVideo(
         env, video_folder=f'video/N{config["N_PORTS"]}_R{config["ROWS"]}_C{config["COLUMNS"]}_S{e["seed"]}')
@@ -166,17 +166,15 @@ for e in tqdm(eval_data, desc='Evaluating'):
 
     done = False
     while not done:
-        action_mask = env.action_masks()
+        mask = env.action_masks()
         action, _ = model.predict(
             obs,
-            action_masks=action_mask,
+            action_masks=mask,
             deterministic=True  # Deterministic for evaluation
         )
         obs_tensor, _ = model.policy.obs_to_tensor(obs)
         distribution = model.policy.get_distribution(obs_tensor)
         env.unwrapped.probs = distribution.distribution.probs
-        env.unwrapped.prev_action = action
-        env.unwrapped.action_mask = action_mask
 
         env.render()
         obs, reward, done, _ = env.step(action)
