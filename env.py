@@ -140,6 +140,7 @@ class MPSPEnv(gym.Env):
             self.is_terminated,
             info
         )
+        
 
     def action_masks(self):
         """Returns a mask for the actions (True if the action is valid, False otherwise)."""
@@ -520,6 +521,10 @@ class MPSPEnv(gym.Env):
 
         # Subtract 1 from all containers in the bay
         self.bay_matrix[self.bay_matrix > 0] -= 1
+
+        # Update min_value_per_column
+        for j in range(self.C):
+            self.min_value_per_column[j] = self.get_min_in_column(j)
 
         # Check if at the end
         if self.port == self.N-1:

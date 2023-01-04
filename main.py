@@ -12,10 +12,10 @@ import sys
 
 
 # --- Config ---
-tags = ['simple','authentic matrices']
+tags = ['relative','authentic matrices']
 wandb_run_path = None
 train_again = True
-log_wandb = False
+log_wandb = True
 
 config = {
     # Environment
