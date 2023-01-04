@@ -28,37 +28,13 @@ class TransportationEncoder(nn.Module):
         # )
         self.device = device
 
-    def forward(self, x, ports):
+    def forward(self, x):
         x = x.to(self.device).float()
 
-        output = torch.zeros(
-            x.shape[0],
-            self.n_ports * self.n_ports,
-            device=self.device
-        )
+        # Flatten the embedding dimension, keep batch and column
+        x = x.flatten(1)
 
-        ports = ports.squeeze().tolist()
-        ports = [int(port) for port in ports]
-
-        for i, port in enumerate(ports):
-            batch = x[i]
-
-            # Remove the ports that already have been visited
-            batch = batch[port:]
-
-            # Flatten the batch
-            batch = batch.flatten()
-
-            # Pad with zeros to have size n_ports * n_ports
-            batch = torch.nn.functional.pad(
-                batch,
-                (0, port * self.n_ports)
-            )
-
-            # Add to output
-            output[i] = batch
-
-        return output
+        return x
 
 
 class BayEncoder(nn.Module):
@@ -86,19 +62,13 @@ class BayEncoder(nn.Module):
         self.n_ports = n_ports
         self.device = device
 
-    def forward(self, x, ports):
+    def forward(self, x):
         x = x.to(self.device).float()
-
-        # Subtract the port from each bay
-        x = x - ports.unsqueeze(1)
-
-        # Make all negative values zero
-        x = torch.nn.functional.relu(x)
 
         # Flatten the embedding dimension, keep batch and column
         x = x.flatten(1)
+        
         return x
-        # return self.model(x)
 
 
 class ToLong(nn.Module):
@@ -181,8 +151,6 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
     def forward(self, observations):
         encoded_tensor_list = []
 
-        ports = observations['port']
-
         # self.extractors contain nn.Modules that do all the processing.
         for key, extractor in self.extractors.items():
 
@@ -190,7 +158,6 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
             encoded_tensor_list.append(
                 extractor(
                     observations[key].to(self.device),
-                    ports
                 ).to(self.device)
             )
 

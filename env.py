@@ -53,19 +53,12 @@ class MPSPEnv(gym.Env):
             dtype=np.int32
         )
 
-        # Define port as integer
-        self.port = spaces.Box(
-            low=0,
-            high=self.N,
-            shape=(1,),
-            dtype=np.int32
-        )
 
         self.observation_space = spaces.Dict({
             'bay_matrix': bay_matrix_def,
             'transportation_matrix': transportation_matrix_def,
-            'port': self.port
         })
+
         self.transportation_matrix = None
         self.bay_matrix = None
         self.column_counts = None
@@ -121,7 +114,7 @@ class MPSPEnv(gym.Env):
         if should_add:
             j = action
             i = self.R - self.column_counts[j] - 1
-
+        
             assert self.column_counts[j] < self.R, "Cannot add containers to full columns"
 
             reward += self._add_container(i, j)
@@ -134,9 +127,6 @@ class MPSPEnv(gym.Env):
             ] > 0, "Cannot remove containers from empty columns"
 
             reward += self._remove_container(i, j)
-
-        # Port is zero indexed
-        self.is_terminated = self.port+1 == self.N
 
         info = {
             "mask": self.action_masks()
@@ -283,7 +273,7 @@ class MPSPEnv(gym.Env):
             if not self.action_mask[i]:
                 color = 'white'
             else:
-                color = gradient[int(prob)]
+                color = gradient[int(prob) - 1]
 
             # Draw the colored box
             pygame.draw.rect(
@@ -457,8 +447,8 @@ class MPSPEnv(gym.Env):
     def _get_last_destination_container(self):
 
         container = -1
-        for h in range(self.N-1, self.port, -1):
-            if self.transportation_matrix[self.port, h] > 0:
+        for h in range(self.N-1, 0, -1):
+            if self.transportation_matrix[0, h] > 0:
                 container = h
                 break
 
@@ -475,7 +465,7 @@ class MPSPEnv(gym.Env):
         if container == self.min_value_per_column[j]:
             self.min_value_per_column[j] = self.get_min_in_column(j)
 
-        self.transportation_matrix[self.port, container] += 1
+        self.transportation_matrix[0, container] += 1
         self.column_counts[j] -= 1
 
         # Penalize shifting containers
@@ -500,7 +490,7 @@ class MPSPEnv(gym.Env):
 
         # Update state
         self.bay_matrix[i, j] = container
-        self.transportation_matrix[self.port, container] -= 1
+        self.transportation_matrix[0, container] -= 1
 
         # Check if container is blocking (there exists a container in the same column with a higher destination)
         # If so, penalize
@@ -508,13 +498,34 @@ class MPSPEnv(gym.Env):
             delta_reward -= 1
 
         # Sail along for every zero-row
-        while np.sum(self.transportation_matrix[self.port]) == 0:
-            self.port += 1
-            self._offload_containers()
-            if self.port + 1 == self.N:
-                break
+        
+        while not self.is_terminated and np.sum(self.transportation_matrix[0]) == 0:
+            delta_reward += self._sail_along()
 
         return delta_reward
+
+
+    def _sail_along(self):
+        """Sails along to next port if there are no containers to offload"""
+        self.port += 1
+
+        # Shift the transportation matrix up and left by one
+        self.transportation_matrix = np.roll(self.transportation_matrix, -1, axis=0)
+        self.transportation_matrix = np.roll(self.transportation_matrix, -1, axis=1)
+        self.transportation_matrix[-1, :] = 0
+        self.transportation_matrix[:, -1] = 0
+
+        # Offload containers
+        self._offload_containers()
+
+        # Subtract 1 from all containers in the bay
+        self.bay_matrix[self.bay_matrix > 0] -= 1
+
+        # Check if at the end
+        if self.port == self.N-1:
+            self.is_terminated = True
+
+        return 0 # No penalty for sailing along
 
     def _create_image_array(self, screen, size):
         scaled_screen = pygame.transform.smoothscale(screen, size)
@@ -550,19 +561,19 @@ class MPSPEnv(gym.Env):
                     break
 
                 # If true, we must offload this container and all containers above it
-                if self.bay_matrix[i, j] == self.port:
+                if self.bay_matrix[i, j] == 1:
                     offloading_column = True
 
                 if not offloading_column:
                     continue
 
-                if self.bay_matrix[i, j] != self.port:
+                if self.bay_matrix[i, j] != 1:
                     n_blocking_containers += 1
                     # Add container back into transportation matrix
                     destination_port = self.bay_matrix[i, j]
                     self.transportation_matrix[
-                        self.port,
-                        destination_port
+                        0,
+                        destination_port-1 # -1 because we are shifting the matrix up and left by 1
                     ] += 1
 
                 self.bay_matrix[i, j] = 0
@@ -588,7 +599,6 @@ class MPSPEnv(gym.Env):
         return {
             'bay_matrix': self.bay_matrix,
             'transportation_matrix': self.transportation_matrix,
-            'port': self.port,
         }
 
     def _get_will_block(self):

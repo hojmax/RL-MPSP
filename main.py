@@ -15,7 +15,7 @@ import sys
 tags = ['simple','authentic matrices']
 wandb_run_path = None
 train_again = True
-log_wandb = True
+log_wandb = False
 
 config = {
     # Environment
@@ -53,7 +53,7 @@ env = make_vec_env(
         config['N_PORTS']
     ),
     # Take cores from command line, default to 8
-    n_envs=int(sys.argv[1]) if len(sys.argv) > 1 else 8,
+    n_envs=1#int(sys.argv[1]) if len(sys.argv) > 1 else 8,
 )
 
 policy_kwargs = {
