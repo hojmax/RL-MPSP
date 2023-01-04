@@ -63,30 +63,35 @@ int *get_zeros(int n)
 // Returns a binary array of length 2*c
 // The first c elements are the add mask
 // The last c elements are the remove mask
+void update_mask_for_column(struct state *state, int j)
+{
+    // Add mask
+    state->mask[j] = state->column_counts[j] < state->R;
+
+    // Remove mask
+    if (state->remove_restrictions == remove_all)
+    {
+        int column_not_empty = state->column_counts[j] > 0;
+        state->mask[j + state->C] = column_not_empty;
+    }
+    else if (state->remove_restrictions == remove_only_when_blocking)
+    {
+        int column_not_empty = state->column_counts[j] > 0;
+        int next_container = state->loading_list[1];
+        int is_blocking = state->min_container_per_column[j] < next_container;
+        state->mask[j + state->C] = column_not_empty && is_blocking;
+    }
+    else if (state->remove_restrictions == no_remove)
+    {
+        state->mask[j + state->C] = 0;
+    }
+}
+
 void insert_mask(struct state *state)
 {
     for (int j = 0; j < state->C; j++)
     {
-        // Add mask
-        state->mask[j] = state->column_counts[j] < state->R;
-
-        // Remove mask
-        if (state->remove_restrictions == remove_all)
-        {
-            int column_not_empty = state->column_counts[j] > 0;
-            state->mask[j + state->C] = column_not_empty;
-        }
-        else if (state->remove_restrictions == remove_only_when_blocking)
-        {
-            int column_not_empty = state->column_counts[j] > 0;
-            int next_container = state->loading_list[1];
-            int is_blocking = state->min_container_per_column[j] < next_container;
-            state->mask[j + state->C] = column_not_empty && is_blocking;
-        }
-        else if (state->remove_restrictions == no_remove)
-        {
-            state->mask[j + state->C] = 0;
-        }
+        update_mask_for_column(state, j);
     }
 }
 
@@ -210,6 +215,7 @@ int offload_containers(struct state *state)
     if (n_shifts > 0)
     {
         insert_loading_list(state);
+        insert_mask(state);
     }
 
     for (int j = 0; j < state->C; j++)
@@ -267,6 +273,9 @@ int add_container(int i, int j, struct state *state)
             break;
         }
     }
+
+    // Update mask
+    update_mask_for_column(j, state);
 
     return delta_reward;
 }
@@ -344,6 +353,8 @@ int remove_container(int i, int j, struct state *state)
         state->min_container_per_column[j] = get_min_in_column(j, state);
     }
 
+    update_mask_for_column(j, state);
+
     return -1;
 }
 
@@ -361,6 +372,9 @@ void free_state(struct state *state)
 
 struct state *get_empty_state(int N, int R, int C, enum remove_restrictions remove_restrictions)
 {
+    assert(N > 0);
+    assert(R > 0);
+    assert(C > 0);
     struct state *state = malloc(sizeof(struct state));
     int upper_triangle_length = N * (N - 1) / 2;
     state->N = N;
@@ -379,9 +393,9 @@ struct state *get_empty_state(int N, int R, int C, enum remove_restrictions remo
     return state;
 }
 
-void initialize_random_state(struct state *state, double exponential_constant, int seed)
+// Clears the state
+void clear_state(struct state *state)
 {
-    // ----- Reset state -----
     fill_array(state->bay_matrix, state->R * state->C, 0);
     fill_array(state->transportation_matrix, state->N * state->N, 0);
     fill_array(state->loading_list, 2 * state->loading_list_padded_length, 0);
@@ -390,16 +404,19 @@ void initialize_random_state(struct state *state, double exponential_constant, i
     fill_array(state->min_container_per_column, state->C, state->N);
     fill_array(state->containers_per_port, state->N, 0);
     fill_array(state->mask, 2 * state->C, 0);
-    // -----------------------
-
-    insert_transportation_matrix(state, exponential_constant, seed);
-    insert_loading_list(state);
-    insert_mask(state);
     state->port = 0;
     state->is_terminal = 0;
     state->last_reward = 0;
     state->last_action = -1;
     state->sum_reward = 0;
+}
+
+void initialize_random_state(struct state *state, double exponential_constant, int seed)
+{
+    clear_state(state);
+    insert_transportation_matrix(state, exponential_constant, seed);
+    insert_loading_list(state);
+    insert_mask(state);
 }
 
 void insert_containers_per_port(struct state *state)
@@ -415,26 +432,11 @@ void insert_containers_per_port(struct state *state)
 
 void initialize_state_from_transportation_matrix(struct state *state, int *transportation_matrix)
 {
-    // ----- Reset state -----
-    fill_array(state->bay_matrix, state->R * state->C, 0);
-    fill_array(state->transportation_matrix, state->N * state->N, 0);
-    fill_array(state->loading_list, 2 * state->loading_list_padded_length, 0);
-    fill_array(state->column_counts, state->C, 0);
-    // Initialize min_container_per_column to N (max value + 1)
-    fill_array(state->min_container_per_column, state->C, state->N);
-    fill_array(state->containers_per_port, state->N, 0);
-    fill_array(state->mask, 2 * state->C, 0);
-    // -----------------------
-
+    clear_state(state);
     state->transportation_matrix = transportation_matrix;
     insert_containers_per_port(state);
     insert_loading_list(state);
     insert_mask(state);
-    state->port = 0;
-    state->is_terminal = 0;
-    state->last_reward = 0;
-    state->last_action = -1;
-    state->sum_reward = 0;
 }
 
 // Execute one time step within the environment
@@ -462,8 +464,6 @@ void step(int action, struct state *state)
         assert(state->column_counts[j] > 0);
         reward = remove_container(i, j, state);
     }
-    // Update mask
-    insert_mask(state);
 
     state->is_terminal = state->port + 1 == state->N;
     state->last_reward = reward;
