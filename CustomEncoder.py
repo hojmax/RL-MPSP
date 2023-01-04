@@ -28,17 +28,17 @@ class TransportationEncoder(nn.Module):
         # )
         self.device = device
 
-    def forward(self, x):
+    def forward(self, x, ports):
         x = x.to(self.device).float()
-
-        remaining_ports = x.sum(1).argmax(1)
-        ports = self.n_ports - remaining_ports - 1
 
         output = torch.zeros(
             x.shape[0],
             self.n_ports * self.n_ports,
             device=self.device
         )
+
+        ports = ports.squeeze().tolist()
+        ports = [int(port) for port in ports]
 
         for i, port in enumerate(ports):
             batch = x[i]
@@ -66,6 +66,7 @@ class BayEncoder(nn.Module):
         self,
         rows,
         internal_hidden,
+        n_ports,
         device='cpu',
     ):
         super().__init__()
@@ -82,10 +83,17 @@ class BayEncoder(nn.Module):
                     nn.Tanh(),
                     nn.Flatten()
                 )
+        self.n_ports = n_ports
         self.device = device
 
-    def forward(self, x):
+    def forward(self, x, ports):
         x = x.to(self.device).float()
+
+        # Subtract the port from each bay
+        x = x - ports.unsqueeze(1)
+
+        # Make all negative values zero
+        x = torch.nn.functional.relu(x)
 
         # Flatten the embedding dimension, keep batch and column
         x = x.flatten(1)
@@ -143,6 +151,7 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
                 extractors[key] = BayEncoder(
                     rows,
                     internal_hidden,
+                    n_ports,
                     device=device
                 )
                 total_concat_size += cols * rows
@@ -172,6 +181,7 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
     def forward(self, observations):
         encoded_tensor_list = []
 
+        ports = observations['port']
 
         # self.extractors contain nn.Modules that do all the processing.
         for key, extractor in self.extractors.items():
@@ -179,7 +189,8 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
             # We are given a (Batch, Height, Width) PyTorch tensor
             encoded_tensor_list.append(
                 extractor(
-                    observations[key].to(self.device)
+                    observations[key].to(self.device),
+                    ports
                 ).to(self.device)
             )
 

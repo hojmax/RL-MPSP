@@ -52,9 +52,19 @@ class MPSPEnv(gym.Env):
             shape=(self.N, self.N),
             dtype=np.int32
         )
+
+        # Define port as integer
+        self.port = spaces.Box(
+            low=0,
+            high=self.N,
+            shape=(1,),
+            dtype=np.int32
+        )
+
         self.observation_space = spaces.Dict({
             'bay_matrix': bay_matrix_def,
             'transportation_matrix': transportation_matrix_def,
+            'port': self.port
         })
         self.transportation_matrix = None
         self.bay_matrix = None
@@ -578,6 +588,7 @@ class MPSPEnv(gym.Env):
         return {
             'bay_matrix': self.bay_matrix,
             'transportation_matrix': self.transportation_matrix,
+            'port': self.port,
         }
 
     def _get_will_block(self):
