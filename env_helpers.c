@@ -151,6 +151,7 @@ void sort_according_to_values(int *values, int *array, int n)
 }
 
 // Takes a N x N array
+// Values must be in the range [0, N-1]
 // Returns a N x N array with the columns swapped in order
 // The order is lexographical (bottom being most significant)
 // Example:
