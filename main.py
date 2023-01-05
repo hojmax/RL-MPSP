@@ -28,7 +28,7 @@ config = {
     'PI_LAYER_SIZES': [64, 64],
     'VF_LAYER_SIZES': [64, 64],
     # Training
-    'TOTAL_TIMESTEPS': 3_000_000,
+    'TOTAL_TIMESTEPS': 100e6,
     '_ENT_COEF': 0,
     '_LEARNING_RATE': 1.5e-4,
     '_N_EPOCHS': 3,
@@ -85,7 +85,7 @@ base_env = make_vec_env(
         rows=config['ROWS'],
         columns=config['COLUMNS'],
         n_ports=config['N_PORTS'],
-        remove_restrictions="remove_all"
+        remove_restrictions="no_remove"
     ),
     n_envs=n_envs,
 )
@@ -144,18 +144,19 @@ eval_rewards = []
 paper_rewards = [-e['paper_result'] for e in eval_data]
 paper_seeds = [e['seed'] for e in eval_data]
 
-for e in tqdm(eval_data, desc='Evaluating'):
-    # Creating seperate env for evaluation
-    env = MPSPEnv(
-        rows=config['ROWS'],
-        columns=config['COLUMNS'],
-        n_ports=config['N_PORTS'],
-        remove_restrictions="remove_all"
-    )
-    env = gym.wrappers.RecordVideo(
-        env, video_folder=f'video/N{config["N_PORTS"]}_R{config["ROWS"]}_C{config["COLUMNS"]}_S{e["seed"]}')
+env = MPSPEnv(
+    rows=config['ROWS'],
+    columns=config['COLUMNS'],
+    n_ports=config['N_PORTS'],
+    remove_restrictions="no_remove"
+)
+env = gym.wrappers.RecordVideo(
+    env, video_folder=f'video/N{config["N_PORTS"]}_R{config["ROWS"]}_C{config["COLUMNS"]}_S{0}'
+)
 
+for e in tqdm(eval_data, desc='Evaluating'):
     total_reward = 0
+
     obs = env.reset(
         transportation_matrix=e['transportation_matrix'].astype(np.int32)
     )
@@ -177,7 +178,8 @@ for e in tqdm(eval_data, desc='Evaluating'):
         total_reward += reward
 
     eval_rewards.append(total_reward)
-    env.close()
+
+env.close()
 
 if create_new_run:
     eval = {

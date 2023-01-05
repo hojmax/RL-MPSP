@@ -194,6 +194,7 @@ class MPSPEnv(gym.Env):
 
     def close(self):
         """Free the memory allocated in C"""
+        print('Closing environment')
         c_helpers.free_state(self.state)
 
         if self.blocking_pointer is not None:
