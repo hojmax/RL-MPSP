@@ -155,49 +155,17 @@ void sort_according_to_values(int *values, int *array, int n)
 // The order is lexographical (bottom being most significant)
 // Example:
 // Input
-// 0 0 0 2
-// 0 1 0 2
-// 3 4 0 2
-// 6 7 8 6
+// 0 0 0 1
+// 0 1 0 1
+// 2 1 0 1
+// 1 2 3 1
 // Output
-// 0 0 0 2
-// 0 1 0 2
-// 0 4 3 2
-// 8 7 6 6
+// 1 0 0 0
+// 1 0 1 0
+// 1 2 1 0
+// 1 1 2 3
 int *sort_columns(int *array, int n)
 {
-    // int *test_order = malloc(n * sizeof(int));
-    // int *test_values = malloc(n * sizeof(int));
-    // int test[] = {3, 1, 0, 2};
-    // for (int k = 0; k < 10; k++)
-    // {
-    //     for (int i = 0; i < n; i++)
-    //     {
-    //         test_order[i] = i;
-    //         test_values[i] = test[i];
-    //         // random_int(0, n);
-    //     }
-    //     printf("Test values: ");
-    //     for (int i = 0; i < 4; i++)
-    //     {
-    //         printf("%d ", test_values[i]);
-    //     }
-    //     printf("\n");
-    //     printf("Test order: ");
-    //     for (int i = 0; i < 4; i++)
-    //     {
-    //         printf("%d ", test_order[i]);
-    //     }
-    //     printf("\n");
-    //     sort_according_to_values(test_values, test_order, 4);
-    //     printf("Test order: ");
-    //     for (int i = 0; i < 4; i++)
-    //     {
-    //         printf("%d ", test_order[i]);
-    //     }
-    //     printf("\n\n\n");
-    // }
-
     int *column_order = malloc(n * sizeof(int));
     // Starts with 0 to n-1, as the current order
     for (int i = 0; i < n; i++)
@@ -205,42 +173,19 @@ int *sort_columns(int *array, int n)
         column_order[i] = i;
     }
 
-    printf("Input:\n");
     for (int i = 0; i < n; i++)
     {
-        for (int j = 0; j < n; j++)
-        {
-            printf("%d ", array[i * n + j]);
-        }
-        printf("\n");
-    }
-    printf("\n");
-
-    for (int i = 0; i < n; i++)
-    {
-        printf("Column order: ");
-        for (int i = 0; i < n; i++)
-        {
-            printf("%d ", column_order[i]);
-        }
-        printf("\n");
         int some_non_zero_value = 0;
         int *row_values = malloc(n * sizeof(int));
         for (int j = 0; j < n; j++)
         {
-            int value = array[i * n + j];
-            row_values[column_order[j]] = value;
+            int value = array[i * n + column_order[j]];
+            row_values[j] = value;
             if (value > 0)
             {
                 some_non_zero_value = 1;
             }
         }
-        printf("Row values: ");
-        for (int i = 0; i < n; i++)
-        {
-            printf("%d ", row_values[i]);
-        }
-        printf("\n\n");
         // No need to sort if all values are zero
         if (some_non_zero_value)
         {
