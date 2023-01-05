@@ -3,45 +3,47 @@ import torch.nn as nn
 import torch
 
 
-class LoadingListEncoder(nn.Module):
-    def __init__(
-        self,
-        Container_embedding,
-        container_embedding_size,
-        hidden_size,
-        device='cpu'
-    ):
-        super().__init__()
-        self.Container_embedding = Container_embedding
-        self.hidden_size = hidden_size
-        self.lstm = nn.LSTM(
-            # +1 for count
-            1 + container_embedding_size,
-            hidden_size,
-            device=device,
-            batch_first=True
-        )
-        self.device = device
+# class LoadingListEncoder(nn.Module):
+#     def __init__(
+#         self,
+#         Container_embedding,
+#         container_embedding_size,
+#         hidden_size,
+#         device='cpu'
+#     ):
+#         super().__init__()
+#         self.Container_embedding = Container_embedding
+#         self.hidden_size = hidden_size
+#         self.lstm = nn.LSTM(
+#             # +1 for count
+#             1 + container_embedding_size,
+#             hidden_size,
+#             device=device,
+#             batch_first=True
+#         )
+#         self.device = device
 
-    def forward(self, loading_lists, loading_list_lengths):
-        loading_lists = loading_lists.to(self.device)
+#     def forward(self, loading_lists, loading_list_lengths):
+#         loading_lists = loading_lists.to(self.device)
+#         print(loading_lists.shape)
+#         print(loading_lists)
+#         print(loading_list_lengths)
+#         # Add container embedding, batched
+#         loading_lists = torch.cat([
+#             loading_lists[:, :, 0].unsqueeze(2),
+#             self.Container_embedding(loading_lists[:, :, 1].long())
+#         ], dim=2)
 
-        # Add container embedding, batched
-        loading_lists = torch.cat([
-            loading_lists[:, :, 0].unsqueeze(2),
-            self.Container_embedding(loading_lists[:, :, 1].long())
-        ], dim=2)
+#         packed_sequence = nn.utils.rnn.pack_padded_sequence(
+#             loading_lists,
+#             loading_list_lengths.flatten().cpu(),
+#             batch_first=True,
+#             enforce_sorted=False
+#         )
 
-        packed_sequence = nn.utils.rnn.pack_padded_sequence(
-            loading_lists,
-            loading_list_lengths.flatten().cpu(),
-            batch_first=True,
-            enforce_sorted=False
-        )
+#         _, (hidden, cell) = self.lstm(packed_sequence)
 
-        _, (hidden, cell) = self.lstm(packed_sequence)
-
-        return hidden.squeeze(0)
+#         return hidden.squeeze(0)
 
 
 class ToLong(nn.Module):

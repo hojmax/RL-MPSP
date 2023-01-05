@@ -95,32 +95,15 @@ class MPSPEnv(gym.Env):
             shape=(self.R, self.C),
             dtype=np.int32
         )
-        port_def = spaces.Box(
+        transportation_matrix_def = spaces.Box(
             low=0,
-            high=self.N-1,
-            shape=(1,),
-            dtype=np.int32
-        )
-        loading_list_def = spaces.Box(
-            low=0,
-            # The count can be at most be C*R
-            high=self.C*self.R,
-            # Has length n(n-1)/2 because we only need to store the upper triangle
-            # Has width 2 because we need to store the count and destination
-            shape=(self.N*(self.N-1) // 2, 2),
-            dtype=np.int32
-        )
-        loading_list_length_def = spaces.Box(
-            low=0,
-            high=self.N*(self.N-1) / 2,
-            shape=(1,),
+            high=self.R * self.C,
+            shape=(self.N, self.N),
             dtype=np.int32
         )
         self.observation_space = spaces.Dict({
             'bay_matrix': bay_matrix_def,
-            'port': port_def,
-            'loading_list': loading_list_def,
-            'loading_list_length': loading_list_length_def,
+            'transportation_matrix': transportation_matrix_def
         })
 
     def seed(self, seed=None):
@@ -216,32 +199,32 @@ class MPSPEnv(gym.Env):
         if self.blocking_pointer is not None:
             c_helpers.free_blocking(self.blocking_pointer)
 
-    def print(self):
-        print(' ----- State ----- ')
-        print('Min container per column:')
-        print(self.min_container_per_column)
-        print('Loading list:')
-        print(self.loading_list)
-        print('Loading list length:')
-        print(self.state.contents.loading_list_length)
-        print("Reward:")
-        print(self.state.contents.last_reward)
-        print("Sum reward:")
-        print(self.state.contents.sum_reward)
-        print("Is terminated:")
-        print(self.state.contents.is_terminal)
-        print("Containers per port:")
-        print(self.containers_per_port)
-        print(f'Port: {self.state.contents.port}')
-        print("Mask:")
-        print(self.mask)
-        print('Transportation matrix:')
-        print(self.transportation_matrix)
-        print('Bay matrix:')
-        print(self.bay_matrix)
-        print('Column counts:')
-        print(self.column_counts)
-        print()
+    def print(self, return_string=False):
+        out_string = f"""----- State -----
+Loading list:
+{self.loading_list}
+Loading list length:
+{self.state.contents.loading_list_length}
+Reward: {self.state.contents.last_reward}
+Sum reward: {self.state.contents.sum_reward}
+Is terminated: {self.state.contents.is_terminal}
+Port: {self.state.contents.port}
+Containers per port:
+{self.containers_per_port}
+Min container per column:
+{self.min_container_per_column}
+Mask:
+{self.mask}
+Transportation matrix:
+{self.transportation_matrix}
+Bay matrix:
+{self.bay_matrix}
+Column counts:
+{self.column_counts}"""
+        if return_string:
+            return out_string
+        else:
+            print(out_string)
 
     def render(self, mode='human'):
 
@@ -524,7 +507,5 @@ class MPSPEnv(gym.Env):
         return {
             # Copy since the ndarrays are views
             'bay_matrix': self.bay_matrix.copy(),
-            'port': [self.state.contents.port],
-            'loading_list': self.loading_list.copy(),
-            'loading_list_length': [self.state.contents.loading_list_length],
+            'transportation_matrix': self.transportation_matrix.copy(),
         }

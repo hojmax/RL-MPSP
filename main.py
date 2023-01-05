@@ -2,7 +2,7 @@ from stable_baselines3.common.env_util import make_vec_env
 from wandb.integration.sb3 import WandbCallback
 from sb3_contrib.ppo_mask import MaskablePPO
 from benchmark import get_benchmarking_data
-from CustomEncoder import CustomCombinedExtractor
+# from CustomEncoder import CustomCombinedExtractor
 from env import MPSPEnv
 from tqdm import tqdm
 import numpy as np
@@ -13,10 +13,10 @@ import sys
 
 
 # --- Config ---
-tags = ['count LSTM', 'C env', 'authentic matrices']
+tags = ['state reduction', 'linear simple', 'C env', 'authentic matrices']
 wandb_run_path = None
 train_again = False
-log_wandb = int(sys.argv[4]) if len(sys.argv) > 4 else False
+log_wandb = int(sys.argv[4]) if len(sys.argv) > 4 else True
 show_progress = int(sys.argv[5]) if len(sys.argv) > 5 else True
 
 config = {
@@ -27,12 +27,8 @@ config = {
     # Model
     'PI_LAYER_SIZES': [64, 64],
     'VF_LAYER_SIZES': [64, 64],
-    'CONTAINER_EMBEDDING_SIZE': 16,
-    'OUTPUT_HIDDEN': 256,
-    'INTERNAL_HIDDEN': 64,
-    'LSTM_HIDDEN': 64,
     # Training
-    'TOTAL_TIMESTEPS': 15_000,
+    'TOTAL_TIMESTEPS': 3_000_000,
     '_ENT_COEF': 0,
     '_LEARNING_RATE': 1.5e-4,
     '_N_EPOCHS': 3,
@@ -55,15 +51,15 @@ policy_kwargs = {
         'pi': config['PI_LAYER_SIZES'],
         'vf': config['VF_LAYER_SIZES']
     }],
-    'features_extractor_class': CustomCombinedExtractor,
-    'features_extractor_kwargs': {
-        'n_ports': config['N_PORTS'],
-        'container_embedding_size': config['CONTAINER_EMBEDDING_SIZE'],
-        'internal_hidden': config['INTERNAL_HIDDEN'],
-        'output_hidden': config['OUTPUT_HIDDEN'],
-        'lstm_hidden': config['LSTM_HIDDEN'],
-        'device': device,
-    },
+    # 'features_extractor_class': CustomCombinedExtractor,
+    # 'features_extractor_kwargs': {
+    #     'n_ports': config['N_PORTS'],
+    #     'container_embedding_size': config['CONTAINER_EMBEDDING_SIZE'],
+    #     'internal_hidden': config['INTERNAL_HIDDEN'],
+    #     'output_hidden': config['OUTPUT_HIDDEN'],
+    #     'lstm_hidden': config['LSTM_HIDDEN'],
+    #     'device': device,
+    # },
 }
 create_new_run = (not wandb_run_path or train_again) and log_wandb
 
@@ -161,7 +157,7 @@ for e in tqdm(eval_data, desc='Evaluating'):
 
     total_reward = 0
     obs = env.reset(
-        # transportation_matrix=e['transportation_matrix'].astype(np.int32)
+        transportation_matrix=e['transportation_matrix'].astype(np.int32)
     )
 
     done = False
