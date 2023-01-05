@@ -217,6 +217,7 @@ class MPSPEnv(gym.Env):
             c_helpers.free_blocking(self.blocking_pointer)
 
     def print(self):
+        print(' ----- State ----- ')
         print('Min container per column:')
         print(self.min_container_per_column)
         print('Loading list:')

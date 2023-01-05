@@ -95,6 +95,74 @@ void insert_mask(struct state *state)
     }
 }
 
+// Subtract from every element in the bay_matrix that is not 0
+void decrement_bay_matrix(struct state *state, int delta_port)
+{
+    for (int i = 0; i < state->R * state->C; i++)
+    {
+        if (state->bay_matrix[i] != 0)
+        {
+            state->bay_matrix[i] -= delta_port;
+        }
+    }
+}
+
+void decrement_min_container_per_column(struct state *state, int delta_port)
+{
+    for (int j = 0; j < state->C; j++)
+    {
+        // min_container_per_column is N when the column is empty
+        if (state->min_container_per_column[j] < state->N)
+        {
+            state->min_container_per_column[j] -= delta_port;
+        }
+    }
+}
+
+void reshift_transportation_matrix(struct state *state, int delta_port)
+{
+    for (int i = 0; i < state->N - 1 - delta_port; i++)
+    {
+        for (int j = i + 1; j < state->N - delta_port; j++)
+        {
+            state->transportation_matrix[i * state->N + j] = state->transportation_matrix[(i + delta_port) * state->N + (j + delta_port)];
+            state->transportation_matrix[(i + delta_port) * state->N + (j + delta_port)] = 0;
+        }
+    }
+}
+
+void reshift_containers_per_port(struct state *state, int delta_port)
+{
+    for (int i = 0; i < state->N - delta_port; i++)
+    {
+        state->containers_per_port[i] = state->containers_per_port[i + delta_port];
+        state->containers_per_port[i + delta_port] = 0;
+    }
+}
+
+void decrement_loading_list(struct state *state, int delta_port)
+{
+    for (int i = 0; i < state->loading_list_length; i++)
+    {
+        if (state->loading_list[2 * i + 1] == 0)
+        {
+            break;
+        }
+        state->loading_list[2 * i + 1] -= delta_port;
+    }
+}
+
+// Reshift transportation_matrix, and decrement bay_matrix and min_container_per_column
+void zero_port_normalization(struct state *state, int delta_port)
+{
+    decrement_bay_matrix(state, delta_port);
+    decrement_min_container_per_column(state, delta_port);
+    reshift_transportation_matrix(state, delta_port);
+    reshift_containers_per_port(state, delta_port);
+    decrement_loading_list(state, delta_port);
+    state->port = 0;
+}
+
 // Generates the loading list and inserts it into the state
 void insert_loading_list(struct state *state)
 {
@@ -333,8 +401,9 @@ int offload_containers(struct state *state)
     if (n_shifts > 0)
     {
         insert_loading_list(state);
-        insert_mask(state);
     }
+
+    insert_mask(state);
 
     for (int j = 0; j < state->C; j++)
     {
@@ -381,6 +450,8 @@ int add_container(int i, int j, struct state *state)
         delta_reward -= 1;
     }
 
+    int prev_port = state->port;
+
     // Sail along for every port that has no more containers to load
     while (state->containers_per_port[state->port] == 0)
     {
@@ -392,9 +463,18 @@ int add_container(int i, int j, struct state *state)
         }
     }
 
-    // Update mask
-    update_mask_for_column(state, j);
+    int delta_port = state->port - prev_port;
 
+    if (delta_port > 0)
+    {
+        zero_port_normalization(state, delta_port);
+    }
+    else
+    {
+        // Update mask
+        // Mask is already handled in offload_containers, so only check when not changing port
+        update_mask_for_column(state, j);
+    }
     return delta_reward;
 }
 
@@ -583,10 +663,9 @@ void step(int action, struct state *state)
         assert(state->column_counts[j] > 0);
         reward = remove_container(i, j, state);
     }
-
     sort_bay_columns(state);
 
-    state->is_terminal = state->port + 1 == state->N;
+    state->is_terminal = state->loading_list_length == 0;
     state->last_reward = reward;
     state->last_action = action;
     state->sum_reward += reward;

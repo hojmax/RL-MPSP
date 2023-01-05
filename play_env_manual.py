@@ -39,11 +39,23 @@ while True:
 
     try:
         if action == "q":
+            env.close()
             break
+        if action == "n":
+            for i in range(env.C):
+                while env.column_counts[i] < env.R and np.sum(env.column_counts) < env.R * env.C - 1:
+                    state, reward, is_terminated, info = env.step(i)
+                    sum_reward += reward
+                    env.print()
+            continue
         elif action[0] == "a":
             action = int(action[1:])
+            assert action < env.C
+            assert action >= 0
         elif action[0] == "r":
             action = int(action[1:]) + env.C
+            assert action < 2 * env.C
+            assert action >= env.C
         else:
             print("Invalid action")
             is_invalid = True
