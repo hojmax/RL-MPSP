@@ -150,16 +150,9 @@ void sort_according_to_values(int *values, int *array, int length, int max_value
     free(output);
 }
 
-void sort_bay_columns(struct state *state)
-{
-    int *new_bay = sort_column_order(state->bay_matrix, state->R, state->C, state->N);
-    free(state->bay_matrix);
-    state->bay_matrix = new_bay;
-}
-
 // Takes a R x C array
 // Values must be in the range [0, N-1]
-// Returns a R x C array with the columns swapped in order
+// Alters (in place) the array with the columns swapped in order
 // The order is lexographical (bottom being most significant)
 // Example:
 // Input
@@ -172,22 +165,22 @@ void sort_bay_columns(struct state *state)
 // 1 0 1 0
 // 1 2 1 0
 // 1 1 2 3
-int *sort_column_order(int *array, int R, int C, int N)
+void sort_bay_columns(struct state *state)
 {
-    int *column_order = malloc(C * sizeof(int));
+    int *column_order = malloc(state->C * sizeof(int));
     // Starts with 0 to n-1, as the current order
-    for (int i = 0; i < C; i++)
+    for (int i = 0; i < state->C; i++)
     {
         column_order[i] = i;
     }
 
-    for (int i = 0; i < R; i++)
+    for (int i = 0; i < state->R; i++)
     {
         int some_non_zero_value = 0;
-        int *row_values = malloc(C * sizeof(int));
-        for (int j = 0; j < C; j++)
+        int *row_values = malloc(state->C * sizeof(int));
+        for (int j = 0; j < state->C; j++)
         {
-            int value = array[i * C + column_order[j]];
+            int value = state->bay_matrix[i * state->C + column_order[j]];
             row_values[j] = value;
             if (value > 0)
             {
@@ -197,21 +190,52 @@ int *sort_column_order(int *array, int R, int C, int N)
         // No need to sort if all values are zero
         if (some_non_zero_value)
         {
-            sort_according_to_values(row_values, column_order, C, N);
+            sort_according_to_values(row_values, column_order, state->C, state->N);
         }
         free(row_values);
     }
-    int *output = malloc(R * C * sizeof(int));
-    // Swap colums into new order
-    for (int i = 0; i < R; i++)
+
+    // Swap colums into new order, in place
+    for (int i = 0; i < state->R; i++)
     {
-        for (int j = 0; j < C; j++)
+        int *row = malloc(state->C * sizeof(int));
+        for (int j = 0; j < state->C; j++)
         {
-            output[i * C + j] = array[i * C + column_order[j]];
+            row[j] = state->bay_matrix[i * state->C + j];
         }
+        for (int j = 0; j < state->C; j++)
+        {
+            state->bay_matrix[i * state->C + j] = row[column_order[j]];
+        }
+        free(row);
     }
-    free(column_order);
-    return output;
+
+    int *prev_column_counts = malloc(state->C * sizeof(int));
+    int *prev_min_container_per_column = malloc(state->C * sizeof(int));
+    int *prev_mask = malloc(2 * state->C * sizeof(int));
+    for (int j = 0; j < state->C; j++)
+    {
+        prev_column_counts[j] = state->column_counts[j];
+        prev_min_container_per_column[j] = state->min_container_per_column[j];
+    }
+    for (int j = 0; j < 2 * state->C; j++)
+    {
+        prev_mask[j] = state->mask[j];
+    }
+    for (int j = 0; j < state->C; j++)
+    {
+        // Swap the column counts
+        state->column_counts[j] = prev_column_counts[column_order[j]];
+        // Swap the min container per column
+        state->min_container_per_column[j] = prev_min_container_per_column[column_order[j]];
+        // Swap the add-part of the mask
+        state->mask[j] = prev_mask[column_order[j]];
+        // Swap the remove-part of the mask
+        state->mask[state->C + j] = prev_mask[state->C + column_order[j]];
+    }
+    free(prev_column_counts);
+    free(prev_min_container_per_column);
+    free(prev_mask);
 }
 
 // Left shifts the loading list (removes first element)

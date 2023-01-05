@@ -5,7 +5,7 @@ env = MPSPEnv(
     rows=10,
     columns=4,
     n_ports=10,
-    remove_restrictions="remove_only_when_blocking"
+    remove_restrictions="remove_all"
 )
 
 test_matrix = np.array(
