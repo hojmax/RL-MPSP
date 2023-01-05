@@ -27,8 +27,10 @@ env.reset(test_matrix)
 print("Instructions:")
 print("The command aN will add a container to column N")
 print("The command rN will remove a container from column N")
-print("The command q will quit the game")
-
+print("The command 'q' will quit the game")
+print("The command 'n' will fill the board a good bunch (without changing port)")
+print("Press enter to continue...")
+input()
 
 env.print()
 sum_reward = 0
