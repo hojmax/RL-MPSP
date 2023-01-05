@@ -49,6 +49,4 @@ int *get_blocking(struct state *state);
 
 void free_blocking(int *blocking_containers);
 
-int *sort_columns(int *array, int n);
-
 #endif

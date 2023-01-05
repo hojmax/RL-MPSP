@@ -122,27 +122,27 @@ void insert_loading_list(struct state *state)
 
 // Sort using count sort
 // With n-1 being the maximum value in the array
-void sort_according_to_values(int *values, int *array, int n)
+void sort_according_to_values(int *values, int *array, int length, int max_value)
 {
-    int *count = calloc(n, sizeof(int));
-    for (int i = 0; i < n; i++)
+    int *count = calloc(max_value, sizeof(int));
+    for (int i = 0; i < length; i++)
     {
         count[values[i]]++;
     }
 
-    for (int i = 1; i < n; i++)
+    for (int i = 1; i < max_value; i++)
     {
         count[i] += count[i - 1];
     }
 
-    int *output = malloc(n * sizeof(int));
-    for (int i = n - 1; i >= 0; i--)
+    int *output = malloc(length * sizeof(int));
+    for (int i = length - 1; i >= 0; i--)
     {
         output[count[values[i]] - 1] = array[i];
         count[values[i]]--;
     }
 
-    for (int i = 0; i < n; i++)
+    for (int i = 0; i < length; i++)
     {
         array[i] = output[i];
     }
@@ -150,9 +150,16 @@ void sort_according_to_values(int *values, int *array, int n)
     free(output);
 }
 
-// Takes a N x N array
+void sort_bay_columns(struct state *state)
+{
+    int *new_bay = sort_column_order(state->bay_matrix, state->R, state->C, state->N);
+    free(state->bay_matrix);
+    state->bay_matrix = new_bay;
+}
+
+// Takes a R x C array
 // Values must be in the range [0, N-1]
-// Returns a N x N array with the columns swapped in order
+// Returns a R x C array with the columns swapped in order
 // The order is lexographical (bottom being most significant)
 // Example:
 // Input
@@ -165,22 +172,22 @@ void sort_according_to_values(int *values, int *array, int n)
 // 1 0 1 0
 // 1 2 1 0
 // 1 1 2 3
-int *sort_columns(int *array, int n)
+int *sort_column_order(int *array, int R, int C, int N)
 {
-    int *column_order = malloc(n * sizeof(int));
+    int *column_order = malloc(C * sizeof(int));
     // Starts with 0 to n-1, as the current order
-    for (int i = 0; i < n; i++)
+    for (int i = 0; i < C; i++)
     {
         column_order[i] = i;
     }
 
-    for (int i = 0; i < n; i++)
+    for (int i = 0; i < R; i++)
     {
         int some_non_zero_value = 0;
-        int *row_values = malloc(n * sizeof(int));
-        for (int j = 0; j < n; j++)
+        int *row_values = malloc(C * sizeof(int));
+        for (int j = 0; j < C; j++)
         {
-            int value = array[i * n + column_order[j]];
+            int value = array[i * C + column_order[j]];
             row_values[j] = value;
             if (value > 0)
             {
@@ -190,25 +197,19 @@ int *sort_columns(int *array, int n)
         // No need to sort if all values are zero
         if (some_non_zero_value)
         {
-            sort_according_to_values(row_values, column_order, n);
+            sort_according_to_values(row_values, column_order, C, N);
         }
         free(row_values);
     }
-    int *output = malloc(n * n * sizeof(int));
+    int *output = malloc(R * C * sizeof(int));
     // Swap colums into new order
-    for (int i = 0; i < n; i++)
+    for (int i = 0; i < R; i++)
     {
-        for (int j = 0; j < n; j++)
+        for (int j = 0; j < C; j++)
         {
-            output[i * n + j] = array[i * n + column_order[j]];
+            output[i * C + j] = array[i * C + column_order[j]];
         }
     }
-    // Print column order
-    for (int i = 0; i < n; i++)
-    {
-        printf("%d ", column_order[i]);
-    }
-    printf("\n");
     free(column_order);
     return output;
 }
@@ -558,6 +559,8 @@ void step(int action, struct state *state)
         assert(state->column_counts[j] > 0);
         reward = remove_container(i, j, state);
     }
+
+    sort_bay_columns(state);
 
     state->is_terminal = state->port + 1 == state->N;
     state->last_reward = reward;
