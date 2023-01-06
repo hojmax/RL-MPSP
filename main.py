@@ -1,4 +1,5 @@
 from stable_baselines3.common.env_util import make_vec_env
+from CustomEncoder import CustomCombinedExtractor
 from wandb.integration.sb3 import WandbCallback
 from sb3_contrib.ppo_mask import MaskablePPO
 from benchmark import get_benchmarking_data
@@ -15,7 +16,7 @@ import sys
 tags = ['state reduction', 'linear simple', 'C env', 'authentic matrices']
 wandb_run_path = None
 train_again = False
-log_wandb = int(sys.argv[4]) if len(sys.argv) > 4 else False
+log_wandb = int(sys.argv[4]) if len(sys.argv) > 4 else True
 show_progress = int(sys.argv[5]) if len(sys.argv) > 5 else True
 
 config = {
@@ -24,8 +25,11 @@ config = {
     'COLUMNS': 4,
     'N_PORTS': 10,
     # Model
-    'PI_LAYER_SIZES': [128, 128, 128],
-    'VF_LAYER_SIZES': [128, 128, 128],
+    'PI_LAYER_SIZES': [32, 32],
+    'VF_LAYER_SIZES': [32, 32],
+    'CONTAINER_EMBEDDING_SIZE': 16,
+    'INTERNAL_HIDDEN': 32,
+    'OUTPUT_HIDDEN': 64,
     # Training
     'TOTAL_TIMESTEPS': 100e6,
     '_ENT_COEF': 0,
@@ -49,7 +53,14 @@ policy_kwargs = {
     'net_arch': [{
         'pi': config['PI_LAYER_SIZES'],
         'vf': config['VF_LAYER_SIZES']
-    }]
+    }],
+    'features_extractor_class': CustomCombinedExtractor,
+    'features_extractor_kwargs': {
+        'n_ports':  config['N_PORTS'],
+        'container_embedding_size': config['CONTAINER_EMBEDDING_SIZE'],
+        'internal_hidden': config['INTERNAL_HIDDEN'],
+        'output_hidden': config['OUTPUT_HIDDEN'],
+    }
 }
 create_new_run = (not wandb_run_path or train_again) and log_wandb
 
@@ -74,7 +85,7 @@ base_env = make_vec_env(
         rows=config['ROWS'],
         columns=config['COLUMNS'],
         n_ports=config['N_PORTS'],
-        remove_restrictions="remove_all"
+        remove_restrictions="remove_only_when_blocking"
     ),
     n_envs=n_envs,
 )
@@ -137,7 +148,7 @@ env = MPSPEnv(
     rows=config['ROWS'],
     columns=config['COLUMNS'],
     n_ports=config['N_PORTS'],
-    remove_restrictions="remove_all"
+    remove_restrictions="remove_only_when_blocking"
 )
 env = gym.wrappers.RecordVideo(
     env, video_folder=f'video/N{config["N_PORTS"]}_R{config["ROWS"]}_C{config["COLUMNS"]}_S{0}'
