@@ -8,27 +8,30 @@ env = MPSPEnv(
     remove_restrictions="remove_all"
 )
 
-test_matrix = np.array(
-    [[0, 0, 6, 6, 2, 5, 8, 2, 11, 0],
-     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-     [0, 0, 0, 0, 0, 0, 1, 2, 0, 3],
-     [0, 0, 0, 0, 3, 0, 0, 2, 0, 1],
-     [0, 0, 0, 0, 0, 0, 2, 1, 2, 0],
-     [0, 0, 0, 0, 0, 0, 0, 0, 5, 0],
-     [0, 0, 0, 0, 0, 0, 0, 11, 0, 0],
-     [0, 0, 0, 0, 0, 0, 0, 0, 13, 5],
-     [0, 0, 0, 0, 0, 0, 0, 0, 0, 31],
-     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]],
-    dtype=np.int32
-)
+# test_matrix = np.array(
+#     [
+#         [0, 10, 0, 8, 3, 4, 3, 2, 4, 6],
+#         [0, 0, 0, 3, 0, 5, 0, 0, 2, 0],
+#         [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+#         [0, 0, 0, 0, 3, 3, 3, 2, 0, 0],
+#         [0, 0, 0, 0, 0, 0, 0, 1, 5, 0],
+#         [0, 0, 0, 0, 0, 0, 1, 2, 1, 8],
+#         [0, 0, 0, 0, 0, 0, 0, 0, 6, 1],
+#         [0, 0, 0, 0, 0, 0, 0, 0, 7, 0],
+#         [0, 0, 0, 0, 0, 0, 0, 0, 0, 25],
+#         [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+#     ],
+#     dtype=np.int32
+# )
 
-env.reset(test_matrix)
+env.reset()
 
 print("Instructions:")
 print("The command aN will add a container to column N")
 print("The command rN will remove a container from column N")
 print("The command 'q' will quit the game")
 print("The command 'n' will fill the board a good bunch (without changing port)")
+print("The command 'r' will reset the board")
 print("Press enter to continue...")
 input()
 
@@ -38,14 +41,19 @@ sum_reward = 0
 while True:
     action = input("Enter an action: ")
     is_invalid = False
+    is_terminated = False
 
     try:
         if action == "q":
             env.close()
             break
-        if action == "n":
+        elif action == "r":
+            env.reset()
+            env.print()
+            continue
+        elif action == "n":
             for i in range(env.C):
-                while env.column_counts[i] < env.R and np.sum(env.column_counts) < env.R * env.C - 1:
+                while not is_terminated and env.column_counts[i] < env.R and np.sum(env.column_counts) < env.R * env.C - 1:
                     state, reward, is_terminated, info = env.step(i)
                     sum_reward += reward
                     env.print()

@@ -637,6 +637,7 @@ void insert_containers_per_port(struct state *state)
 void initialize_state_from_transportation_matrix(struct state *state, int *transportation_matrix)
 {
     clear_state(state);
+    free(state->transportation_matrix);
     state->transportation_matrix = transportation_matrix;
     insert_containers_per_port(state);
     insert_loading_list(state);
