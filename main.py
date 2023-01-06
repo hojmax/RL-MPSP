@@ -1,4 +1,5 @@
 from stable_baselines3.common.env_util import make_vec_env
+from CustomEncoder import CustomCombinedExtractor
 from wandb.integration.sb3 import WandbCallback
 from sb3_contrib.ppo_mask import MaskablePPO
 from benchmark import get_benchmarking_data
@@ -24,8 +25,8 @@ config = {
     'COLUMNS': 4,
     'N_PORTS': 10,
     # Model
-    'PI_LAYER_SIZES': [64, 64],
-    'VF_LAYER_SIZES': [64, 64],
+    'PI_LAYER_SIZES': [128, 128, 128],
+    'VF_LAYER_SIZES': [128, 128, 128],
     # Training
     'TOTAL_TIMESTEPS': 100e6,
     '_ENT_COEF': 0,
@@ -49,12 +50,12 @@ policy_kwargs = {
     'net_arch': [{
         'pi': config['PI_LAYER_SIZES'],
         'vf': config['VF_LAYER_SIZES']
-    }]
+    }],
+    'features_extractor_class': CustomCombinedExtractor
 }
 create_new_run = (not wandb_run_path or train_again) and log_wandb
 
 if create_new_run:
-    wandb.tensorboard.patch(root_logdir="./runs")
     run = wandb.init(
         project="PPO-SB3",
         entity="rl-msps",
@@ -68,14 +69,14 @@ if create_new_run:
     )
 
 # Take cores from command line, default to 8
-n_envs = int(sys.argv[1]) if len(sys.argv) > 1 else 8
+n_envs = int(sys.argv[1]) if len(sys.argv) > 1 else 16
 
 base_env = make_vec_env(
     lambda: MPSPEnv(
         rows=config['ROWS'],
         columns=config['COLUMNS'],
         n_ports=config['N_PORTS'],
-        remove_restrictions="no_remove"
+        remove_restrictions="remove_all"
     ),
     n_envs=n_envs,
 )
@@ -138,7 +139,7 @@ env = MPSPEnv(
     rows=config['ROWS'],
     columns=config['COLUMNS'],
     n_ports=config['N_PORTS'],
-    remove_restrictions="no_remove"
+    remove_restrictions="remove_all"
 )
 env = gym.wrappers.RecordVideo(
     env, video_folder=f'video/N{config["N_PORTS"]}_R{config["ROWS"]}_C{config["COLUMNS"]}_S{0}'
