@@ -2,6 +2,9 @@
 #include <stdlib.h>
 #include <math.h>
 #include "env_helpers.h"
+// Disable assertions in release mode
+// Remove NDEBUG to enable assertions
+#define NDEBUG
 #include <assert.h>
 
 // Fills an array with a value
@@ -304,6 +307,7 @@ void sort_bay_columns(struct state *state)
     free(prev_column_counts);
     free(prev_min_container_per_column);
     free(prev_mask);
+    free(column_order);
 }
 
 // Left shifts the loading list (removes first element)
@@ -606,6 +610,7 @@ void clear_state(struct state *state)
     state->port = 0;
     state->is_terminal = 0;
     state->last_reward = 0;
+    // -1 because there was no action taken yet
     state->last_action = -1;
     state->sum_reward = 0;
 }

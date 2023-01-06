@@ -76,6 +76,38 @@ class MPSPEnv(gym.Env):
             c_int(self.C),
             c_int(self.remove_restrictions)
         )
+
+        # ----- NOTE: The following numpy arrays are views of the underlying C arrays (not a copy)
+        self.bay_matrix = np.ctypeslib.as_array(
+            self.state.contents.bay_matrix,
+            shape=(self.R, self.C),
+        )
+        self.loading_list = np.ctypeslib.as_array(
+            self.state.contents.loading_list,
+            shape=(self.state.contents.loading_list_padded_length, 2),
+        )
+        self.mask = np.ctypeslib.as_array(
+            self.state.contents.mask,
+            shape=(2 * self.C,),
+        )
+        self.transportation_matrix = np.ctypeslib.as_array(
+            self.state.contents.transportation_matrix,
+            shape=(self.N, self.N),
+        )
+        self.column_counts = np.ctypeslib.as_array(
+            self.state.contents.column_counts,
+            shape=(self.C,),
+        )
+        self.min_container_per_column = np.ctypeslib.as_array(
+            self.state.contents.min_container_per_column,
+            shape=(self.C,),
+        )
+        self.containers_per_port = np.ctypeslib.as_array(
+            self.state.contents.containers_per_port,
+            shape=(self.N,),
+        )
+        # -----------------------------
+
         self.screen = None
         self.colors = None
         self.probs = None
@@ -135,37 +167,6 @@ class MPSPEnv(gym.Env):
                 transportation_matrix.ctypes.data_as(POINTER(c_int)),
             )
 
-        # ----- NOTE: The following numpy arrays are views of the underlying C arrays (not a copy)
-        self.bay_matrix = np.ctypeslib.as_array(
-            self.state.contents.bay_matrix,
-            shape=(self.R, self.C),
-        )
-        self.loading_list = np.ctypeslib.as_array(
-            self.state.contents.loading_list,
-            shape=(self.state.contents.loading_list_padded_length, 2),
-        )
-        self.mask = np.ctypeslib.as_array(
-            self.state.contents.mask,
-            shape=(2 * self.C,),
-        )
-        self.transportation_matrix = np.ctypeslib.as_array(
-            self.state.contents.transportation_matrix,
-            shape=(self.N, self.N),
-        )
-        self.column_counts = np.ctypeslib.as_array(
-            self.state.contents.column_counts,
-            shape=(self.C,),
-        )
-        self.min_container_per_column = np.ctypeslib.as_array(
-            self.state.contents.min_container_per_column,
-            shape=(self.C,),
-        )
-        self.containers_per_port = np.ctypeslib.as_array(
-            self.state.contents.containers_per_port,
-            shape=(self.N,),
-        )
-        # -----
-
         return self._get_observation()
 
     def step(self, action):
@@ -199,6 +200,7 @@ class MPSPEnv(gym.Env):
 
         if self.blocking_pointer is not None:
             c_helpers.free_blocking(self.blocking_pointer)
+            self.blocking_pointer = None
 
     def print(self, return_string=False):
         out_string = f"""----- State -----
