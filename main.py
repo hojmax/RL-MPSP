@@ -2,7 +2,6 @@ from stable_baselines3.common.env_util import make_vec_env
 from wandb.integration.sb3 import WandbCallback
 from sb3_contrib.ppo_mask import MaskablePPO
 from benchmark import get_benchmarking_data
-# from CustomEncoder import CustomCombinedExtractor
 from env import MPSPEnv
 from tqdm import tqdm
 import numpy as np
@@ -50,16 +49,7 @@ policy_kwargs = {
     'net_arch': [{
         'pi': config['PI_LAYER_SIZES'],
         'vf': config['VF_LAYER_SIZES']
-    }],
-    # 'features_extractor_class': CustomCombinedExtractor,
-    # 'features_extractor_kwargs': {
-    #     'n_ports': config['N_PORTS'],
-    #     'container_embedding_size': config['CONTAINER_EMBEDDING_SIZE'],
-    #     'internal_hidden': config['INTERNAL_HIDDEN'],
-    #     'output_hidden': config['OUTPUT_HIDDEN'],
-    #     'lstm_hidden': config['LSTM_HIDDEN'],
-    #     'device': device,
-    # },
+    }]
 }
 create_new_run = (not wandb_run_path or train_again) and log_wandb
 
