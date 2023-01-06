@@ -70,7 +70,7 @@ while True:
             print("Invalid action")
             is_invalid = True
     except:
-        print("Invalid action")
+        print("Invalid action (or internal error)")
         is_invalid = True
 
     if not is_invalid:

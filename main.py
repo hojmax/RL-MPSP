@@ -1,5 +1,4 @@
 from stable_baselines3.common.env_util import make_vec_env
-from CustomEncoder import CustomCombinedExtractor
 from wandb.integration.sb3 import WandbCallback
 from sb3_contrib.ppo_mask import MaskablePPO
 from benchmark import get_benchmarking_data
@@ -16,7 +15,7 @@ import sys
 tags = ['state reduction', 'linear simple', 'C env', 'authentic matrices']
 wandb_run_path = None
 train_again = False
-log_wandb = int(sys.argv[4]) if len(sys.argv) > 4 else True
+log_wandb = int(sys.argv[4]) if len(sys.argv) > 4 else False
 show_progress = int(sys.argv[5]) if len(sys.argv) > 5 else True
 
 config = {
@@ -50,8 +49,7 @@ policy_kwargs = {
     'net_arch': [{
         'pi': config['PI_LAYER_SIZES'],
         'vf': config['VF_LAYER_SIZES']
-    }],
-    'features_extractor_class': CustomCombinedExtractor
+    }]
 }
 create_new_run = (not wandb_run_path or train_again) and log_wandb
 

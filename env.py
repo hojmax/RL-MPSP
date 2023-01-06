@@ -68,6 +68,11 @@ class MPSPEnv(gym.Env):
         self.N = n_ports
         self.exponential_constant = 0.25  # Also called 'lambda'
         self.remove_restrictions = remove_lookup[remove_restrictions]
+        self.upper_triangular_indeces = np.triu_indices(
+            n_ports,
+            k=1  # Offest. We don't want to include the diagonal
+        )
+
         # Caller must free the state once it is terminated
         # This is done using self.close()
         self.state = c_helpers.get_empty_state(
@@ -97,10 +102,11 @@ class MPSPEnv(gym.Env):
             shape=(self.R, self.C),
             dtype=np.int32
         )
+        # Return upper triangular elements (flattened)
         transportation_matrix_def = spaces.Box(
             low=0,
             high=self.R * self.C,
-            shape=(self.N, self.N),
+            shape=(self.N * (self.N - 1) // 2,),
             dtype=np.int32
         )
         self.observation_space = spaces.Dict({
@@ -203,6 +209,14 @@ class MPSPEnv(gym.Env):
     def close(self):
         """Free the memory allocated in C"""
         print('Closing environment')
+        del self.bay_matrix
+        del self.loading_list
+        del self.mask
+        del self.transportation_matrix
+        del self.column_counts
+        del self.min_container_per_column
+        del self.containers_per_port
+
         c_helpers.free_state(self.state)
 
         if self.blocking_pointer is not None:
@@ -517,5 +531,6 @@ Column counts:
         return {
             # Copy since the ndarrays are views
             'bay_matrix': self.bay_matrix.copy(),
-            'transportation_matrix': self.transportation_matrix.copy(),
+            # Advanced indexing makes a copy (https://numpy.org/doc/stable/user/basics.indexing.html#advanced-indexing)
+            'transportation_matrix': self.transportation_matrix[self.upper_triangular_indeces],
         }
