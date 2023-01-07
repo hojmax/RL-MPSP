@@ -2,9 +2,9 @@
 #include <stdlib.h>
 #include <math.h>
 #include <assert.h>
-#include "env_helpers.h"
+#include "../env_helpers.h"
 
-int test_exponential(double exponential_constant, int iterations)
+void test_exponential(double exponential_constant, int iterations)
 {
     int total_rewards = 0;
     struct state *state = get_empty_state(
@@ -53,6 +53,7 @@ int main()
     {
         test_exponential((double)i / 100, iterations);
     }
+    return 0;
 }
 
 // Command to compile:
