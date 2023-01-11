@@ -16,7 +16,7 @@ import sys
 tags = ['state reduction', 'linear simple', 'C env', 'authentic matrices']
 wandb_run_path = None
 train_again = False
-log_wandb = int(sys.argv[4]) if len(sys.argv) > 4 else True
+log_wandb = int(sys.argv[4]) if len(sys.argv) > 4 else False
 show_progress = int(sys.argv[5]) if len(sys.argv) > 5 else True
 
 config = {
@@ -31,7 +31,7 @@ config = {
     'INTERNAL_HIDDEN': 32,
     'OUTPUT_HIDDEN': 64,
     # Training
-    'TOTAL_TIMESTEPS': 100e6,
+    'TOTAL_TIMESTEPS': 1000,
     '_ENT_COEF': 0,
     '_LEARNING_RATE': 1.5e-4,
     '_N_EPOCHS': 3,
@@ -85,7 +85,7 @@ base_env = make_vec_env(
         rows=config['ROWS'],
         columns=config['COLUMNS'],
         n_ports=config['N_PORTS'],
-        remove_restrictions="remove_only_when_blocking"
+        remove_restrictions="no_remove"
     ),
     n_envs=n_envs,
 )
@@ -148,7 +148,7 @@ env = MPSPEnv(
     rows=config['ROWS'],
     columns=config['COLUMNS'],
     n_ports=config['N_PORTS'],
-    remove_restrictions="remove_only_when_blocking"
+    remove_restrictions="no_remove"
 )
 env = gym.wrappers.RecordVideo(
     env, video_folder=f'video/N{config["N_PORTS"]}_R{config["ROWS"]}_C{config["COLUMNS"]}_S{0}'

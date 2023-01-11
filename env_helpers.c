@@ -4,7 +4,7 @@
 #include "env_helpers.h"
 // Disable assertions in release mode
 // Remove NDEBUG to enable assertions
-#define NDEBUG
+// #define NDEBUG
 #include <assert.h>
 
 // Fills an array with a value
@@ -649,6 +649,8 @@ void step(int action, struct state *state)
 {
     // Assert that env is not terminal
     assert(!state->is_terminal);
+    // Assert that action is not masked
+    assert(state->mask[action]);
 
     int should_add = action < state->C;
     int reward;

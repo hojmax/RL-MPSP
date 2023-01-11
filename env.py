@@ -137,6 +137,8 @@ class MPSPEnv(gym.Env):
             )
         else:
             assert transportation_matrix.dtype == np.int32, "Transportation matrix must be of type np.int32"
+            # Free the memory in python first
+            del self.transportation_matrix
             # Initialize in place
             c_helpers.initialize_state_from_transportation_matrix(
                 self.state,
@@ -210,18 +212,14 @@ class MPSPEnv(gym.Env):
         """Free the memory allocated in C"""
         print('Closing environment')
         del self.bay_matrix
-        del self.loading_list
-        del self.mask
         del self.transportation_matrix
+        del self.loading_list
         del self.column_counts
         del self.min_container_per_column
         del self.containers_per_port
+        del self.mask
 
         c_helpers.free_state(self.state)
-
-        if self.blocking_pointer is not None:
-            c_helpers.free_blocking(self.blocking_pointer)
-            self.blocking_pointer = None
 
     def print(self, return_string=False):
         out_string = f"""----- State -----
@@ -447,6 +445,10 @@ Column counts:
                         font_size=13
                     )
 
+        del blocking_containers
+        c_helpers.free_blocking(self.blocking_pointer)
+        del self.blocking_pointer
+
     def _render_transportation_matrix(self, cell_size, pos=(0, 0)):
         """Renders the transportation matrix"""
 
@@ -515,17 +517,14 @@ Column counts:
     def _get_blocking(self):
         """
         Returns a matrix of blocking containers (1 if blocking, 0 otherwise)
-        Automatically frees the memory
+        Must be freed by caller
         """
-        if self.blocking_pointer is not None:
-            c_helpers.free_blocking(self.blocking_pointer)
-
         self.blocking_pointer = c_helpers.get_blocking(self.state)
 
         return np.ctypeslib.as_array(
             self.blocking_pointer,
             shape=(self.R, self.C)
-        ).copy()
+        )
 
     def _get_observation(self):
         return {
