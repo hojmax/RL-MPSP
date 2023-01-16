@@ -8,16 +8,16 @@ void test_exponential(double exponential_constant, int iterations)
 {
     int total_rewards = 0;
     struct state *state = get_empty_state(
-        10,       // N
-        10,       // R
-        4,        // C
-        no_remove // Only add
-    );
+        10,        // N
+        10,        // R
+        4,         // C
+        no_remove, // Only add
+        mixed);
     // Seeding rand
     srand(0);
     for (int i = 0; i < iterations; i++)
     {
-        initialize_random_state(state, exponential_constant, i); // Seed is i
+        initialize_random_state(state, exponential_constant, i + (int)(exponential_constant * 100)); // Seed is i
         while (!state->is_terminal)
         {
             int *possible = malloc(sizeof(int) * state->C);

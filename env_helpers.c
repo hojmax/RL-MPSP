@@ -482,7 +482,7 @@ int add_container(int i, int j, struct state *state)
     return delta_reward;
 }
 
-void insert_transportation_matrix(struct state *state, double exponential_constant, int seed)
+void insert_authentic(struct state *state, double exponential_constant, int seed)
 {
     int capacity = state->R * state->C;
     srand(seed);
@@ -522,6 +522,65 @@ void insert_transportation_matrix(struct state *state, double exponential_consta
         {
             capacity += state->transportation_matrix[h * state->N + i + 1];
         }
+    }
+}
+
+void insert_mixed(struct state *state, int seed)
+{
+    int capacity = state->R * state->C;
+    srand(seed);
+
+    for (int i = 0; i < state->N - 1; i++)
+    {
+        int *ordering = get_ordering(i + 1, state->N);
+        int ordering_length = state->N - i - 1;
+        for (int j = 0; j < ordering_length; j++)
+        {
+            // Nothing more to add to row
+            if (capacity == 0)
+            {
+                break;
+            }
+            int k = ordering[j];
+            int matrix_index = i * state->N + k;
+            int random_value = random_int(0, capacity);
+            state->transportation_matrix[matrix_index] = random_value;
+            capacity -= state->transportation_matrix[matrix_index];
+            state->containers_per_port[i] += state->transportation_matrix[matrix_index];
+        }
+        // Make sure that ship has at least one container
+        if (i == 0 && capacity == state->R * state->C)
+        {
+            int random_value = random_int(1, capacity);
+            // Add to first port
+            state->transportation_matrix[1] = random_value;
+            capacity -= state->transportation_matrix[1];
+            state->containers_per_port[0] += state->transportation_matrix[1];
+        }
+        free(ordering);
+
+        // Offload containers
+        for (int h = 0; h < i + 1; h++)
+        {
+            capacity += state->transportation_matrix[h * state->N + i + 1];
+        }
+    }
+}
+
+void insert_transportation_matrix(struct state *state, double exponential_constant, int seed)
+{
+    if (state->transportation_type == authentic)
+    {
+        insert_authentic(state, exponential_constant, seed);
+    }
+    else if (state->transportation_type == mixed)
+    {
+        insert_mixed(state, seed);
+    }
+    else
+    {
+        printf("Invalid transportation type");
+        exit(1);
     }
 }
 
@@ -573,7 +632,7 @@ void free_state(struct state *state)
     free(state);
 }
 
-struct state *get_empty_state(int N, int R, int C, enum remove_restrictions remove_restrictions)
+struct state *get_empty_state(int N, int R, int C, enum remove_restrictions remove_restrictions, enum transportation_type transportation_type)
 {
     assert(N > 0);
     assert(R > 0);
@@ -592,6 +651,7 @@ struct state *get_empty_state(int N, int R, int C, enum remove_restrictions remo
     state->containers_per_port = malloc(N * sizeof(int));
     state->mask = malloc(2 * C * sizeof(int));
     state->remove_restrictions = remove_restrictions;
+    state->transportation_type = transportation_type;
     state->loading_list_padded_length = upper_triangle_length;
     return state;
 }

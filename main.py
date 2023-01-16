@@ -85,7 +85,8 @@ base_env = make_vec_env(
         rows=config['ROWS'],
         columns=config['COLUMNS'],
         n_ports=config['N_PORTS'],
-        remove_restrictions="no_remove"
+        remove_restrictions="no_remove",
+        transportation_type="authentic"
     ),
     n_envs=n_envs,
 )
@@ -148,7 +149,8 @@ env = MPSPEnv(
     rows=config['ROWS'],
     columns=config['COLUMNS'],
     n_ports=config['N_PORTS'],
-    remove_restrictions="no_remove"
+    remove_restrictions="no_remove",
+    transportation_type="authentic"
 )
 env = gym.wrappers.RecordVideo(
     env, video_folder=f'video/N{config["N_PORTS"]}_R{config["ROWS"]}_C{config["COLUMNS"]}_S{0}'

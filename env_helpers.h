@@ -12,6 +12,13 @@ enum remove_restrictions
     no_remove = 2
 };
 
+// Defines what type of transportation matrix generation is used for initialization
+enum transportation_type
+{
+    authentic = 0,
+    mixed = 1,
+};
+
 // Contains information about the state of the environment
 struct state
 {
@@ -33,9 +40,10 @@ struct state
     int last_action;
     int sum_reward;
     enum remove_restrictions remove_restrictions;
+    enum transportation_type transportation_type;
 };
 
-struct state *get_empty_state(int N, int R, int C, enum remove_restrictions remove_restrictions);
+struct state *get_empty_state(int N, int R, int C, enum remove_restrictions remove_restrictions, enum transportation_type transportation_type);
 
 void initialize_random_state(struct state *state, double exponential_constant, int seed);
 

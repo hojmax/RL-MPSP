@@ -7,7 +7,8 @@ env = MPSPEnv(
     rows=10,
     columns=4,
     n_ports=10,
-    remove_restrictions="remove_all"
+    remove_restrictions="remove_all",
+    transportation_type="mixed"
 )
 
 env.reset()

@@ -32,6 +32,7 @@ class State(Structure):
         ("last_action", c_int),
         ("sum_reward", c_int),
         ("remove_restrictions", c_int),
+        ("transportation_type", c_int),
     ]
 
 
@@ -57,17 +58,23 @@ remove_lookup = {
     'no_remove': 2
 }
 
+transportation_lookup = {
+    'authentic': 0,
+    'mixed': 1,
+}
+
 
 class MPSPEnv(gym.Env):
     """Environment for the Multi Port Shipping Problem"""
 
-    def __init__(self, rows, columns, n_ports, remove_restrictions, render_mode: Optional[str] = None):
+    def __init__(self, rows, columns, n_ports, remove_restrictions, transportation_type, render_mode: Optional[str] = None):
         super(MPSPEnv, self).__init__()
         self.R = rows
         self.C = columns
         self.N = n_ports
         self.exponential_constant = 0.25  # Also called 'lambda'
         self.remove_restrictions = remove_lookup[remove_restrictions]
+        self.transportation_type = transportation_lookup[transportation_type]
         self.upper_triangular_indeces = np.triu_indices(
             n_ports,
             k=1  # Offest. We don't want to include the diagonal
@@ -79,7 +86,8 @@ class MPSPEnv(gym.Env):
             c_int(self.N),
             c_int(self.R),
             c_int(self.C),
-            c_int(self.remove_restrictions)
+            c_int(self.remove_restrictions),
+            c_int(self.transportation_type),
         )
         self._set_ctypes_views()
 
