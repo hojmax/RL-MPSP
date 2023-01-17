@@ -6,8 +6,9 @@ import gym
 from gym import spaces
 import numpy as np
 import os
+
 # Should be before pygame import (may be out of order because of autoformatting)
-os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
+os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "hide"
 
 
 class text_type(Enum):
@@ -19,12 +20,7 @@ class text_type(Enum):
 class NoRemoveWrapper(gym.Wrapper):
     def __init__(self, env):
         super().__init__(env)
-        self.logic_mask = np.concatenate(
-            (
-                np.ones(self.env.C),
-                np.zeros(self.env.C)
-            )
-        )
+        self.logic_mask = np.concatenate((np.ones(self.env.C), np.zeros(self.env.C)))
 
     def action_masks(self):
         mask = self.env.action_masks()
@@ -51,7 +47,13 @@ class StrategicRemoveWrapper(gym.Wrapper):
 class MPSPEnv(gym.Env):
     """Environment for the Multi Port Shipping Problem"""
 
-    def __init__(self, rows, columns, n_ports, render_mode: Optional[str] = None,):
+    def __init__(
+        self,
+        rows,
+        columns,
+        n_ports,
+        render_mode: Optional[str] = None,
+    ):
         super(MPSPEnv, self).__init__()
         self.R = rows
         self.C = columns
@@ -70,47 +72,22 @@ class MPSPEnv(gym.Env):
             ],
         }
 
-        self.action_space = spaces.Discrete(2 * self.C)
+        # Currently we can only add containers. So C and not 2 * C
+        self.action_space = spaces.Discrete(self.C * 2)
         bay_matrix_def = spaces.Box(
-            low=0,
-            high=self.N-1,
-            shape=(self.R, self.C),
-            dtype=np.int32
+            low=0, high=self.N - 1, shape=(self.R, self.C), dtype=np.int32
         )
-        port_def = spaces.Box(
-            low=0,
-            high=self.N-1,
-            shape=(1,),
-            dtype=np.int32
+        transportation_matrix_def = spaces.Box(
+            low=0, high=np.iinfo(np.int32).max, shape=(self.N, self.N), dtype=np.int32
         )
-        will_block_def = spaces.Box(
-            low=0,
-            high=1,
-            shape=(self.C,),
-            dtype=np.int32
+
+        self.observation_space = spaces.Dict(
+            {
+                "bay_matrix": bay_matrix_def,
+                "transportation_matrix": transportation_matrix_def,
+            }
         )
-        loading_list_def = spaces.Box(
-            low=0,
-            # The count can be at most be C*R
-            high=self.C*self.R,
-            # Has length n(n-1)/2 because we only need to store the upper triangle
-            # Has width 2 because we need to store the count and destination
-            shape=(self.N*(self.N-1) // 2, 2),
-            dtype=np.int32
-        )
-        loading_list_length_def = spaces.Box(
-            low=0,
-            high=self.N*(self.N-1) / 2,
-            shape=(1,),
-            dtype=np.int32
-        )
-        self.observation_space = spaces.Dict({
-            'bay_matrix': bay_matrix_def,
-            'port': port_def,
-            'will_block': will_block_def,
-            'loading_list': loading_list_def,
-            'loading_list_length': loading_list_length_def,
-        })
+
         self.transportation_matrix = None
         self.bay_matrix = None
         self.column_counts = None
@@ -139,7 +116,8 @@ class MPSPEnv(gym.Env):
         self.loading_list = []
         self.transportation_matrix = (
             self._get_mixed_distance_transportation_matrix(self.N)
-            if transportation_matrix is None else transportation_matrix
+            if transportation_matrix is None
+            else transportation_matrix
         )
         self._fill_loading_list()
         self.bay_matrix = np.zeros((self.R, self.C), dtype=np.int32)
@@ -169,34 +147,26 @@ class MPSPEnv(gym.Env):
             j = action
             i = self.R - self.column_counts[j] - 1
 
-            assert self.column_counts[j] < self.R, "Cannot add containers to full columns"
+            assert (
+                self.column_counts[j] < self.R
+            ), "Cannot add containers to full columns"
 
             reward += self._add_container(i, j)
         else:
             j = action - self.C
             i = self.R - self.column_counts[j]
 
-            assert self.column_counts[
-                action - self.C
-            ] > 0, "Cannot remove containers from empty columns"
+            assert (
+                self.column_counts[action - self.C] > 0
+            ), "Cannot remove containers from empty columns"
 
             reward += self._remove_container(i, j)
 
-        # Port is zero indexed
-        self.is_terminated = self.port+1 == self.N
-
-        info = {
-            "mask": self.action_masks()
-        }
+        info = {"mask": self.action_masks()}
 
         self.reward += reward
 
-        return (
-            self._get_observation(),
-            reward,
-            self.is_terminated,
-            info
-        )
+        return (self._get_observation(), reward, self.is_terminated, info)
 
     def action_masks(self):
         """Returns a mask for the actions (True if the action is valid, False otherwise)."""
@@ -213,7 +183,7 @@ class MPSPEnv(gym.Env):
             add_mask = np.logical_and(
                 add_mask,
                 # Can only use first virtual_C columns
-                np.arange(self.C) < self.virtual_C
+                np.arange(self.C) < self.virtual_C,
             )
 
         # Masking out empty columns
@@ -227,23 +197,23 @@ class MPSPEnv(gym.Env):
         pass
 
     def print(self):
-        print(f'Port: {self.port}')
-        print('Bay matrix:')
+        print(f"Port: {self.port}")
+        print("Bay matrix:")
         print(self.bay_matrix)
-        print('Transportation matrix:')
+        print("Transportation matrix:")
         print(self.transportation_matrix)
-        print('Column counts:')
+        print("Column counts:")
         print(self.column_counts)
-        print('Min value per column:')
+        print("Min value per column:")
         print(self.min_value_per_column)
-        print('Loading list:')
+        print("Loading list:")
         print(self.loading_list)
 
-    def render(self, mode='human'):
+    def render(self, mode="human"):
 
         return self._render_human(mode)
 
-    def _render_human(self, mode='human'):
+    def _render_human(self, mode="human"):
 
         # Initialise screen
         H, W = 400, 600
@@ -258,8 +228,7 @@ class MPSPEnv(gym.Env):
             # self.colors = {i: color for i, color in enumerate(helpers.get_color_gradient('#A83279', '#D38312', self.N))}
             # Random distinct light colors without helper
             self.colors = {
-                i: tuple(np.random.randint(128, 255, size=3))
-                for i in range(self.N)
+                i: tuple(np.random.randint(128, 255, size=3)) for i in range(self.N)
             }
 
         # Fill background
@@ -270,8 +239,11 @@ class MPSPEnv(gym.Env):
         PADDING = 20
 
         # Render current port
-        self._render_text(f'Port: {self.port}, Reward: {self.reward}', pos=(
-            W/2, PADDING), font_size=text_type.HEADLINE)
+        self._render_text(
+            f"Port: {self.port}, Reward: {self.reward}",
+            pos=(W / 2, PADDING),
+            font_size=text_type.HEADLINE,
+        )
 
         # Render the bay matrix and transportation matrix
         CELL_SIZE = 20
@@ -279,19 +251,22 @@ class MPSPEnv(gym.Env):
         transport_frame_size = (self.N * CELL_SIZE, self.N * CELL_SIZE)
 
         width_sum = bay_frame_size[0] + transport_frame_size[0] + PADDING
-        bay_x = W/2-width_sum/2
+        bay_x = W / 2 - width_sum / 2
         transport_x = bay_x + bay_frame_size[0] + PADDING
 
-        self._render_bay(cell_size=CELL_SIZE, pos=(
-            bay_x, PADDING*3))
+        self._render_bay(cell_size=CELL_SIZE, pos=(bay_x, PADDING * 3))
         self._render_transportation_matrix(
-            cell_size=CELL_SIZE, pos=(transport_x, PADDING*3))
+            cell_size=CELL_SIZE, pos=(transport_x, PADDING * 3)
+        )
 
         # Render the container explanation
-        self._render_container_explanation(cell_size=CELL_SIZE, pos=(
-            transport_x, PADDING*5 + transport_frame_size[1]))
-        self._render_action_probabilities(cell_size=CELL_SIZE, pos=(
-            bay_x, PADDING*5 + bay_frame_size[1]))
+        self._render_container_explanation(
+            cell_size=CELL_SIZE,
+            pos=(transport_x, PADDING * 5 + transport_frame_size[1]),
+        )
+        self._render_action_probabilities(
+            cell_size=CELL_SIZE, pos=(bay_x, PADDING * 5 + bay_frame_size[1])
+        )
 
         if mode == "human":
             # Blit everything to the screen
@@ -315,27 +290,26 @@ class MPSPEnv(gym.Env):
         # Draw a box for each action. Remove are below the add boxes.
         # Color the box darker green depending on the probability
         # If it is the action, make the border thicker
-        gradient = color_helpers.get_color_gradient('#dd3e54', '#6be585', 100)
+        gradient = color_helpers.get_color_gradient("#dd3e54", "#6be585", 100)
 
         probs = self.probs.detach().cpu().numpy().squeeze()
 
         for i, prob in enumerate(probs):
-            prob = prob*100
+            prob = prob * 100
             if not self.action_mask[i]:
-                color = 'white'
+                color = "white"
             else:
-                color = gradient[int(prob)]
+                color = gradient[int(prob) - 1]
 
             # Draw the colored box
             pygame.draw.rect(
                 self.surface,
                 color,
                 (
-                    x + i * cell_size if i < self.C else x +
-                    (i - self.C) * cell_size,
+                    x + i * cell_size if i < self.C else x + (i - self.C) * cell_size,
                     y if i < self.C else y + cell_size,
                     cell_size,
-                    cell_size
+                    cell_size,
                 ),
             )
 
@@ -345,23 +319,25 @@ class MPSPEnv(gym.Env):
                     self.surface,
                     (0, 0, 0),
                     (
-                        x + i * cell_size if i < self.C else x +
-                        (i - self.C) * cell_size,
+                        x + i * cell_size
+                        if i < self.C
+                        else x + (i - self.C) * cell_size,
                         y if i < self.C else y + cell_size,
                         cell_size,
-                        cell_size
+                        cell_size,
                     ),
-                    2
+                    2,
                 )
 
             self._render_text(
-                f'{np.round(prob,1)}',
+                f"{np.round(prob,1)}",
                 pos=(
-                    x + i * cell_size + cell_size/2 if i < self.C else x +
-                    (i - self.C) * cell_size + cell_size/2,
-                    y + cell_size/2 if i < self.C else y + cell_size + cell_size/2
+                    x + i * cell_size + cell_size / 2
+                    if i < self.C
+                    else x + (i - self.C) * cell_size + cell_size / 2,
+                    y + cell_size / 2 if i < self.C else y + cell_size + cell_size / 2,
                 ),
-                font_size=text_type.CELL
+                font_size=text_type.CELL,
             )
 
     def _render_container_explanation(self, cell_size, pos=(0, 0)):
@@ -370,18 +346,13 @@ class MPSPEnv(gym.Env):
 
         for i, color in enumerate(self.colors.values()):
 
-            self._render_text(f'{i}', pos=(x + cell_size*i + cell_size/2, y))
+            self._render_text(f"{i}", pos=(x + cell_size * i + cell_size / 2, y))
 
             text_offset = 15
             pygame.draw.rect(
                 self.surface,
                 color,
-                (
-                    x + i * cell_size,
-                    y + text_offset,
-                    cell_size,
-                    cell_size
-                ),
+                (x + i * cell_size, y + text_offset, cell_size, cell_size),
             )
 
     def _render_bay(self, cell_size, pos=(0, 0)):
@@ -389,9 +360,8 @@ class MPSPEnv(gym.Env):
 
         x, y = pos
 
-        center_x, center_y = (x + self.C * cell_size / 2,
-                              y + self.R * cell_size / 2)
-        self._render_text(f'Bay', pos=(center_x, y))
+        center_x, center_y = (x + self.C * cell_size / 2, y + self.R * cell_size / 2)
+        self._render_text(f"Bay", pos=(center_x, y))
 
         text_offset = 15
         blocking_containers = self._get_blocking()
@@ -408,9 +378,9 @@ class MPSPEnv(gym.Env):
                         x + j * cell_size,
                         y + text_offset + i * cell_size,
                         cell_size,
-                        cell_size
+                        cell_size,
                     ),
-                    1
+                    1,
                 )
 
                 # Draw the containers
@@ -423,17 +393,19 @@ class MPSPEnv(gym.Env):
                             x + j * cell_size,
                             y + text_offset + i * cell_size,
                             cell_size,
-                            cell_size
-                        )
+                            cell_size,
+                        ),
                     )
 
                 # Draw a little B for all blocking containers
                 if blocking_containers[i, j] == 1:
                     self._render_text(
-                        'B',
-                        pos=(x + j * cell_size + cell_size*3/4, y +
-                             text_offset + i * cell_size + cell_size/4),
-                        font_size=13
+                        "B",
+                        pos=(
+                            x + j * cell_size + cell_size * 3 / 4,
+                            y + text_offset + i * cell_size + cell_size / 4,
+                        ),
+                        font_size=13,
                     )
 
     def _render_transportation_matrix(self, cell_size, pos=(0, 0)):
@@ -441,9 +413,8 @@ class MPSPEnv(gym.Env):
 
         x, y = pos
 
-        center_x, center_y = (x + self.N * cell_size / 2,
-                              y + self.N * cell_size / 2)
-        self._render_text(f'Transportation', pos=(center_x, y))
+        center_x, center_y = (x + self.N * cell_size / 2, y + self.N * cell_size / 2)
+        self._render_text(f"Transportation", pos=(center_x, y))
 
         text_offset = 15
         # Draw the grid lines and the containers
@@ -457,9 +428,9 @@ class MPSPEnv(gym.Env):
                         x + j * cell_size,
                         y + text_offset + i * cell_size,
                         cell_size,
-                        cell_size
+                        cell_size,
                     ),
-                    1
+                    1,
                 )
 
                 # Draw the containers
@@ -472,19 +443,22 @@ class MPSPEnv(gym.Env):
                             x + j * cell_size,
                             y + text_offset + i * cell_size,
                             cell_size,
-                            cell_size
-                        )
+                            cell_size,
+                        ),
                     )
 
                     self._render_text(
-                        f'{count}',
+                        f"{count}",
                         pos=(
-                            x + j * cell_size + cell_size/2, y + text_offset + i * cell_size + cell_size/2
+                            x + j * cell_size + cell_size / 2,
+                            y + text_offset + i * cell_size + cell_size / 2,
                         ),
-                        font_size=text_type.CELL
+                        font_size=text_type.CELL,
                     )
 
-    def _render_text(self, text, pos=(0, 0), font_size: text_type = text_type.SUBHEADLINE):
+    def _render_text(
+        self, text, pos=(0, 0), font_size: text_type = text_type.SUBHEADLINE
+    ):
         """Renders the text"""
 
         if isinstance(font_size, text_type):
@@ -494,6 +468,16 @@ class MPSPEnv(gym.Env):
         text_surface = font.render(text, True, (10, 10, 10))
         text_rect = text_surface.get_rect(center=pos)
         self.surface.blit(text_surface, text_rect)
+
+    def _get_last_destination_container(self):
+
+        container = -1
+        for h in range(self.N - 1, 0, -1):
+            if self.transportation_matrix[0, h] > 0:
+                container = h
+                break
+
+        return container
 
     def _remove_container(self, i, j):
         """Removes container from bay and returns delta reward"""
@@ -512,7 +496,7 @@ class MPSPEnv(gym.Env):
         if container == self.min_value_per_column[j]:
             self.min_value_per_column[j] = self.get_min_in_column(j)
 
-        self.transportation_matrix[self.port, container] += 1
+        self.transportation_matrix[0, container] += 1
         self.column_counts[j] -= 1
 
         # Penalize shifting containers
@@ -528,14 +512,11 @@ class MPSPEnv(gym.Env):
         container = self.loading_list[0][1]
 
         # Update min_value_per_column
-        self.min_value_per_column[j] = min(
-            self.min_value_per_column[j],
-            container
-        )
+        self.min_value_per_column[j] = min(self.min_value_per_column[j], container)
 
         # Update state
         self.bay_matrix[i, j] = container
-        self.transportation_matrix[self.port, container] -= 1
+        self.transportation_matrix[0, container] -= 1
 
         # Either:
         # Remove the first container in the loading list
@@ -551,13 +532,37 @@ class MPSPEnv(gym.Env):
             delta_reward -= 1
 
         # Sail along for every zero-row
-        while np.sum(self.transportation_matrix[self.port]) == 0:
-            self.port += 1
-            self._offload_containers()
-            if self.port + 1 == self.N:
-                break
+
+        while not self.is_terminated and np.sum(self.transportation_matrix[0]) == 0:
+            delta_reward += self._sail_along()
 
         return delta_reward
+
+    def _sail_along(self):
+        """Sails along to next port if there are no containers to offload"""
+        self.port += 1
+
+        # Shift the transportation matrix up and left by one
+        self.transportation_matrix = np.roll(self.transportation_matrix, -1, axis=0)
+        self.transportation_matrix = np.roll(self.transportation_matrix, -1, axis=1)
+        self.transportation_matrix[-1, :] = 0
+        self.transportation_matrix[:, -1] = 0
+
+        # Offload containers
+        self._offload_containers()
+
+        # Subtract 1 from all containers in the bay
+        self.bay_matrix[self.bay_matrix > 0] -= 1
+
+        # Update min_value_per_column
+        for j in range(self.C):
+            self.min_value_per_column[j] = self.get_min_in_column(j)
+
+        # Check if at the end
+        if self.port == self.N - 1:
+            self.is_terminated = True
+
+        return 0  # No penalty for sailing along
 
     def _create_image_array(self, screen, size):
         scaled_screen = pygame.transform.smoothscale(screen, size)
@@ -571,7 +576,7 @@ class MPSPEnv(gym.Env):
 
         for j in range(self.C):
             min_in_column = np.inf
-            for i in range(self.R-1, -1, -1):
+            for i in range(self.R - 1, -1, -1):
                 if self.bay_matrix[i, j] == 0:
                     break
                 if self.bay_matrix[i, j] < min_in_column:
@@ -587,34 +592,35 @@ class MPSPEnv(gym.Env):
 
         for j in range(self.C):
             offloading_column = False
-            for i in range(self.R-1, -1, -1):
+            for i in range(self.R - 1, -1, -1):
                 # We reached top of stack
                 if self.bay_matrix[i, j] == 0:
                     break
 
                 # If true, we must offload this container and all containers above it
-                if self.bay_matrix[i, j] == self.port:
+                if self.bay_matrix[i, j] == 1:
                     offloading_column = True
 
                 if not offloading_column:
                     continue
 
-                if self.bay_matrix[i, j] != self.port:
+                if self.bay_matrix[i, j] != 1:
                     n_blocking_containers += 1
                     # Add container back into transportation matrix
                     destination_port = self.bay_matrix[i, j]
                     self.transportation_matrix[
-                        self.port,
+                        0,
                         destination_port
+                        - 1,  # -1 because we are shifting the matrix up and left by 1
                     ] += 1
 
                 self.bay_matrix[i, j] = 0
                 self.column_counts[j] -= 1
 
         # Rebuild min_value_per_column, as we dont know which containers were removed
-        self.min_value_per_column = np.array([
-            self.get_min_in_column(i) for i in range(self.C)
-        ])
+        self.min_value_per_column = np.array(
+            [self.get_min_in_column(i) for i in range(self.C)]
+        )
 
         # Rebuild load list
         self.loading_list = []
@@ -631,40 +637,28 @@ class MPSPEnv(gym.Env):
             return np.min(non_zero_values)
 
     def _get_observation(self):
-        if len(self.loading_list) == 0:
-            # Last state, so no block
-            will_block = np.zeros(self.C, dtype=np.int32)
-            padded_loading_list = np.zeros(
-                self.observation_space['loading_list'].shape,
-            )
-        else:
-            next_container = self.loading_list[0][1]
-            will_block = self.min_value_per_column < next_container
-            padded_loading_list = np.pad(
-                self.loading_list,
-                # Pad with zeros to correct shape
-                (
-                    (0, self.observation_space['loading_list'].shape[0] - \
-                     len(self.loading_list)),
-                    (0, 0)
-                ),
-                'constant'
-            )
 
         return {
-            'bay_matrix': self.bay_matrix,
-            'port': [self.port],
-            'will_block': will_block,
-            'loading_list': padded_loading_list,
-            'loading_list_length': [len(self.loading_list)],
+            "bay_matrix": self.bay_matrix,
+            "transportation_matrix": self.transportation_matrix,
         }
+
+    def _get_will_block(self):
+        """Returns a vector of size C, where each entry is 1 if the next container will block, 0 otherwise"""
+        next_container = self._get_last_destination_container()
+
+        if next_container == -1:
+            # Last state, so no block
+            return np.zeros(self.C, dtype=np.int32)
+        else:
+            return self.min_value_per_column < next_container
 
     def _get_mixed_distance_transportation_matrix(self, N):
         """Generates a feasible transportation matrix (mixed distance)"""
         ordering = []
 
-        for i in range(N-1):
-            ordering.append(np.arange(N-1, i, -1))
+        for i in range(N - 1):
+            ordering.append(np.arange(N - 1, i, -1))
 
         return self._get_transportation_matrix(N, ordering)
 
@@ -672,8 +666,8 @@ class MPSPEnv(gym.Env):
         """Generates a feasible transportation matrix (short distance)"""
         ordering = []
 
-        for i in range(N-1):
-            ordering.append(np.arange(i+1, N))
+        for i in range(N - 1):
+            ordering.append(np.arange(i + 1, N))
 
         return self._get_transportation_matrix(N, ordering)
 
@@ -681,15 +675,15 @@ class MPSPEnv(gym.Env):
         """Generates a feasible transportation matrix (long distance)"""
         ordering = []
 
-        for i in range(N-1):
-            ordering.append(np.arange(N-1, i, -1))
+        for i in range(N - 1):
+            ordering.append(np.arange(N - 1, i, -1))
 
         return self._get_transportation_matrix(N, ordering)
 
     def _fill_loading_list(self):
         """Create loading list from transportation matrix"""
-        for i in range(self.N-1):
-            for j in range(self.N-1, i, -1):
+        for i in range(self.N - 1):
+            for j in range(self.N - 1, i, -1):
                 count = self.transportation_matrix[i, j]
 
                 if count == 0:
@@ -700,28 +694,24 @@ class MPSPEnv(gym.Env):
 
     def _get_transportation_matrix(self, N, ordering):
         """Generates a feasible transportation matrix (short distance)
-
         Args:
             N (int): Number of ports
             ordering (list): List of lists of what ports to add destination containers to first
         """
         output = np.zeros((N, N), dtype=np.int32)
         bay_capacity = (
-            self.capacity
-            if self.virtual_Capacity is None else
-            self.virtual_Capacity
+            self.capacity if self.virtual_Capacity is None else self.virtual_Capacity
         )
 
         exponential_constant = 0.5
         exponential_multiplier = 10
 
-        for i in range(N-1):
+        for i in range(N - 1):
             for j in ordering[i]:
                 output[i, j] = min(
-                    np.random.exponential(
-                        exponential_constant
-                    ) * exponential_multiplier,
-                    bay_capacity
+                    np.random.exponential(exponential_constant)
+                    * exponential_multiplier,
+                    bay_capacity,
                 )
                 bay_capacity -= output[i, j]
 
@@ -731,7 +721,7 @@ class MPSPEnv(gym.Env):
                 bay_capacity = 0
 
             # Offloaded at port
-            for h in range(i+1):
-                bay_capacity += output[h, i+1]
+            for h in range(i + 1):
+                bay_capacity += output[h, i + 1]
 
         return output
