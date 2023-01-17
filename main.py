@@ -46,7 +46,7 @@ config = {
     "INTERNAL_HIDDEN": 128,
     "LSTM_HIDDEN": 200,
     # Training
-    "TOTAL_TIMESTEPS": 12e6,
+    "TOTAL_TIMESTEPS": 4e6,
     "_ENT_COEF": 0,
     "_LEARNING_RATE": 1.5e-4,
     "_N_EPOCHS": 3,
@@ -78,7 +78,6 @@ policy_kwargs = {
 create_new_run = (not wandb_run_path or train_again) and log_wandb
 
 if create_new_run:
-    wandb.tensorboard.patch(root_logdir="./runs")
     run = wandb.init(
         project="PPO-SB3",
         entity="rl-msps",
@@ -132,7 +131,7 @@ else:
     model = MaskablePPO(
         policy="MultiInputPolicy",
         # Starting with no remove
-        env=base_env,
+        env=no_remove_env,
         verbose=0,
         tensorboard_log=f"runs/{run.id}" if create_new_run else None,
         policy_kwargs=policy_kwargs,
@@ -144,25 +143,7 @@ else:
         gamma=config["_GAMMA"],
         device=device,
     )
-    # print('Training with no remove...')
-    # model.learn(
-    #     total_timesteps=config['TOTAL_TIMESTEPS'] // 3,
-    #     callback=WandbCallback(
-    #         model_save_path=f"models/{run.id}",
-    #     ) if create_new_run else None,
-    #     progress_bar=show_progress,
-    # )
-    # model.set_env(strategic_remove_env)
-    # print('Training with strategic remove...')
-    # model.learn(
-    #     total_timesteps=config['TOTAL_TIMESTEPS'] // 3,
-    #     callback=WandbCallback(
-    #         model_save_path=f"models/{run.id}",
-    #     ) if create_new_run else None,
-    #     progress_bar=show_progress,
-    # )
-    # model.set_env(base_env)
-    print("Training with base remove...")
+
     model.learn(
         total_timesteps=config["TOTAL_TIMESTEPS"],
         callback=WandbCallback(
