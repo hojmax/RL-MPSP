@@ -72,7 +72,6 @@ policy_kwargs = {
         "container_embedding_size": config["CONTAINER_EMBEDDING_SIZE"],
         "internal_hidden": config["INTERNAL_HIDDEN"],
         "output_hidden": config["OUTPUT_HIDDEN"],
-        "lstm_hidden": config["LSTM_HIDDEN"],
         "device": device,
     },
 }

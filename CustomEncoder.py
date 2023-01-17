@@ -3,12 +3,18 @@ import torch.nn as nn
 import torch
 
 
-class LoadingListEncoder(nn.Module):
-    def __init__(
-        self, Container_embedding, container_embedding_size, hidden_size, device="cpu"
-    ):
+class Transpose(nn.Module):
+    def __init__(self):
         super().__init__()
-        self.Container_embedding = Container_embedding
+
+    def forward(self, x):
+        return x.mT
+
+
+class TransportationEncoder(nn.Module):
+    def __init__(self, n_ports, hidden_size, device="cpu"):
+        super().__init__()
+        self.n_ports = n_ports
         self.hidden_size = hidden_size
         # self.linear = nn.Linear(
         #     n_ports,
@@ -55,10 +61,6 @@ class BayEncoder(nn.Module):
 
         return x
 
-        _, (hidden, cell) = self.lstm(packed_sequence)
-
-        return hidden.squeeze(0)
-
 
 class ToLong(nn.Module):
     def __init__(self):
@@ -76,14 +78,6 @@ class ToFloat(nn.Module):
         return x.float()
 
 
-class Transpose(nn.Module):
-    def __init__(self):
-        super().__init__()
-
-    def forward(self, x):
-        return x.mT
-
-
 class CustomCombinedExtractor(BaseFeaturesExtractor):
     def __init__(
         self,
@@ -92,7 +86,6 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
         container_embedding_size,
         internal_hidden,
         output_hidden,
-        lstm_hidden,
         device="cpu",
     ):
         # We do not know features-dim here before going over all the items,
@@ -138,29 +131,11 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
 
     def forward(self, observations):
         encoded_tensor_list = []
-        debug_print = False
-
-        encoded_tensor_list.append(
-            self.extractors["loading_list"](
-                observations["loading_list"].to(self.device),
-                observations["loading_list_length"].to(self.device),
-            ).to(self.device)
-        )
 
         # self.extractors contain nn.Modules that do all the processing.
         for key, extractor in self.extractors.items():
-            if key == "loading_list" or key == "loading_list_length":
-                # We handle these separately
-                continue
 
-            if debug_print:
-                print(key)
-                print(observations[key].shape)
-                print(observations[key])
-                extraction = extractor(observations[key].to(self.device))
-                print(extraction.shape)
-                print(extraction)
-
+            # We are given a (Batch, Height, Width) PyTorch tensor
             encoded_tensor_list.append(
                 extractor(
                     observations[key].to(self.device),
