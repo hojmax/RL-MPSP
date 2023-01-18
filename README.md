@@ -1,5 +1,8 @@
 ## 🏄‍♂️ Usage
 
+### Compiling C
+The Makefile has two commands, one for compiling the C code on an ARM machine (e.g. M1 and M2 Macs), and one for compiling on an x86 machine. To compile on an ARM machine, run `make arm`. To compile on an x86 machine, run `make non-arm`.
+
 ### Local
 
 For local use, simply run the `main.py` file.
@@ -22,15 +25,39 @@ The `!git pull` means that you only have to execute 'Restart, and run all' for c
 !git clone https://[git_token]@github.com/hojmax/rl-mpsp-benchmark.git
 ```
 
-The ```git_token``` should be replaced by your personal access token, and is required since the repo is private. You can generate a token by going to:
+The `git_token` should be replaced by your personal access token, and is required since the repo is private. You can generate a token by going to:
 
 Settings -> Developer Settings -> Personal Access Tokens -> Tokens (classic)
 
 In the final block you add:
 
 ```python
-!python main.py [n_processes] [wandb_api_key] [wandb_note]
+!python main.py [n_processes] [wandb_api_key] [wandb_note] [should_log_wandb]
 ```
+
+### Hendrix Cluster
+
+The first time you enter the cluster you should download the repos and install the required packages:
+
+```bash
+git clone https://github.com/hojmax/RL-MPSP.git && cd ./RL-MPSP && git clone https://[git_token]@github.com/hojmax/rl-mpsp-benchmark.git && module load python/3.9.9 && pip install -r requirements.txt
+```
+
+You can then request resources (4 hours in this case):
+
+```bash
+srun -p gpu --pty --time=04:00:00 --gres gpu:1 bash
+```
+
+And run the python script:
+
+```bash
+!python main.py [n_processes] [wandb_api_key] [wandb_note] [should_log_wandb] 0
+```
+
+The last zero makes sure that the script does not try to show a progress bar, since this is not supported on the cluster.
+
+See [Hendrix documentation](https://diku-dk.github.io/wiki/slurm-cluster) for more information.
 
 ## 🏋️ Weights & Biases
 

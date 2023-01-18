@@ -120,6 +120,17 @@ if random_training:
         lambda: RandomTrainingWrapper(make_remove_option_env()),
         n_envs=n_envs,
     )
+    if train_again:
+        print("Fine-tuning...")
+        model.learn(
+            total_timesteps=config["TOTAL_TIMESTEPS"],
+            callback=WandbCallback(
+                model_save_path=f"models/{run.id}",
+            )
+            if create_new_run
+            else None,
+            progress_bar=show_progress,
+        )
 else:
     env = make_vec_env(
         lambda: make_remove_option_env(),
@@ -153,7 +164,6 @@ else:
         device=device,
     )
 
-if train_again or not wandb_run_path:
     model.learn(
         total_timesteps=config["TOTAL_TIMESTEPS"],
         callback=WandbCallback(
@@ -181,7 +191,7 @@ eval_rewards = []
 paper_rewards = [-e["paper_result"] for e in eval_data]
 paper_seeds = [e["seed"] for e in eval_data]
 
-for e in tqdm(eval_data, desc="Evaluating"):
+for e in eval_data:
     # Creating seperate env for evaluation
     env = MPSPEnv(config["ROWS"], config["COLUMNS"], config["N_PORTS"])
     env = gym.wrappers.RecordVideo(

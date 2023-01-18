@@ -84,6 +84,7 @@ class MPSPEnv(gym.Env):
         self.set_virtual_dimensions(self.R, self.C)
         self.N = n_ports
         self.capacity = self.R * self.C
+        self.set_virtual_dimensions(self.R, self.C)
         self.screen = None
         self.colors = None
         self.probs = None
@@ -120,9 +121,6 @@ class MPSPEnv(gym.Env):
         self.column_counts = None
         self.port = None
         self.is_terminated = False
-        self.virtual_R = None
-        self.virtual_C = None
-        self.virtual_Capacity = None
 
     def set_virtual_dimensions(self, virtual_R, virtual_C):
         """Limits the number of rows and columns that are accessible to the agent"""
@@ -140,11 +138,14 @@ class MPSPEnv(gym.Env):
     def reset(self, transportation_matrix=None, seed=None):
         """Reset the state of the environment to an initial state"""
         self.seed(seed)
+        self.loading_list = []
+        # self._set_random_virtual_dimensions()
         self.transportation_matrix = (
             self._get_mixed_distance_transportation_matrix(self.N)
             if transportation_matrix is None
             else transportation_matrix
         )
+        self._fill_loading_list()
         self.bay_matrix = np.zeros((self.R, self.C), dtype=np.int32)
         self.column_counts = np.zeros(self.C, dtype=np.int32)
         # Initialize to max values
@@ -214,6 +215,8 @@ class MPSPEnv(gym.Env):
                 np.arange(self.C) < self.virtual_C,
             )
 
+        remove_mask = self.column_counts > 0
+
         # Masking out empty columns
         remove_mask = self.column_counts > 0
 
@@ -242,6 +245,8 @@ class MPSPEnv(gym.Env):
         print(self.column_counts)
         print("Min value per column:")
         print(self.min_value_per_column)
+        print("Loading list:")
+        print(self.loading_list)
 
     def render(self, mode="human"):
 
@@ -503,7 +508,7 @@ class MPSPEnv(gym.Env):
         text_rect = text_surface.get_rect(center=pos)
         self.surface.blit(text_surface, text_rect)
 
-    def _get_last_destination_container(self):
+    def _get_next_container(self):
 
         container = -1
         for h in range(self.N - 1, 0, -1):
@@ -519,6 +524,12 @@ class MPSPEnv(gym.Env):
         # Update state
         container = self.bay_matrix[i, j]
         self.bay_matrix[i, j] = 0
+
+        # Add to beginning of loading list
+        if self.loading_list[0][1] == container:
+            self.loading_list[0][0] += 1
+        else:
+            self.loading_list.insert(0, [1, container])
 
         # Check if min_value_per_column needs to be checked/updated
         if container == self.min_value_per_column[j]:
@@ -540,9 +551,7 @@ class MPSPEnv(gym.Env):
         self.column_counts[j] += 1
 
         # Find last destination container
-        container = self._get_last_destination_container()
-
-        assert container != -1, "No containers to offload"
+        container = self.loading_list[0][1]
 
         # Update min_value_per_column
         self.min_value_per_column[j] = min(self.min_value_per_column[j], container)
@@ -670,13 +679,21 @@ class MPSPEnv(gym.Env):
 
     def _get_will_block(self):
         """Returns a vector of size C, where each entry is 1 if the next container will block, 0 otherwise"""
-        next_container = self._get_last_destination_container()
+        next_container = self._get_next_container()
 
         if next_container == -1:
             # Last state, so no block
             return np.zeros(self.C, dtype=np.int32)
         else:
             return self.min_value_per_column < next_container
+
+    def _set_random_virtual_dimensions(self):
+        """Sets the virtual dimensions to a random value"""
+        # TODO: Generate new if same as evaluation dimensions
+        random_R = np.random.randint(1, self.R)
+        random_C = np.random.randint(1, self.C)
+
+        self.set_virtual_dimensions(random_R, random_C)
 
     def _get_mixed_distance_transportation_matrix(self, N):
         """Generates a feasible transportation matrix (mixed distance)"""
@@ -706,9 +723,20 @@ class MPSPEnv(gym.Env):
 
         return self._get_transportation_matrix(N, ordering)
 
+    def _fill_loading_list(self):
+        """Create loading list from transportation matrix"""
+        for i in range(self.N - 1):
+            for j in range(self.N - 1, i, -1):
+                count = self.transportation_matrix[i, j]
+
+                if count == 0:
+                    continue
+
+                container = j
+                self.loading_list.append([count, container])
+
     def _get_transportation_matrix(self, N, ordering):
         """Generates a feasible transportation matrix (short distance)
-
         Args:
             N (int): Number of ports
             ordering (list): List of lists of what ports to add destination containers to first
@@ -727,9 +755,8 @@ class MPSPEnv(gym.Env):
             for h in range(i + 1):
                 bay_capacity += output[h, i + 1]
 
-        # Make sure the first row of the transportation matrix has containers
-        # Otherwise you could have skipped the first port
-        if np.sum(output[0]) == 0:
-            return self._get_transportation_matrix(N, ordering)
-        else:
-            return output
+            # Offloaded at port
+            for h in range(i + 1):
+                bay_capacity += output[h, i + 1]
+
+        return output

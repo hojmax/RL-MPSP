@@ -22,12 +22,42 @@ class TransportationEncoder(nn.Module):
     def forward(self, x):
         x = x.to(self.device).float()
 
-        # Pass through RNN
-        # Hidden defaults to zero
-        _, hidden = self.rnn(x)
+        # Flatten the embedding dimension, keep batch and column
+        x = x.flatten(1)
 
-        # Hidden has shape (1, batch_size, hidden_size)
-        return hidden.squeeze(0)
+        x = self.linear(x)
+
+        return x
+
+
+class BayEncoder(nn.Module):
+    def __init__(
+        self,
+        rows,
+        internal_hidden,
+        n_ports,
+        device="cpu",
+    ):
+        super().__init__()
+        self.model = nn.Sequential(
+            # We want to encode columns, not rows
+            Transpose(),
+            # Flatten the embedding dimension, keep batch and column
+            nn.Flatten(2),
+            nn.Linear(rows, internal_hidden, device=device),
+            nn.Tanh(),
+            nn.Flatten(),
+        )
+        self.n_ports = n_ports
+        self.device = device
+
+    def forward(self, x):
+        x = x.to(self.device).float()
+
+        # Flatten the embedding dimension, keep batch and column
+        x = x.flatten(1)
+
+        return x
 
 
 class ToLong(nn.Module):
@@ -100,12 +130,19 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
                     nn.Linear(subspace.shape[0], internal_hidden, device=device),
                     nn.Tanh(),
                 )
-                total_concat_size += internal_hidden
+                total_concat_size += 1
+            elif key == "will_block":
+                extractors[key] = nn.Sequential(
+                    ToFloat(),
+                )
+                total_concat_size += subspace.shape[0]
 
         self.extractors = nn.ModuleDict(extractors)
 
         self.final_layer = nn.Sequential(
             nn.Linear(total_concat_size, output_hidden, device=device),
+            nn.Tanh(),
+            nn.Linear(output_hidden, output_hidden, device=device),
             nn.Tanh(),
         )
 

@@ -43,5 +43,4 @@ while True:
         print("Sum reward: {}".format(sum_reward))
         print("Is terminated: {}".format(is_terminated))
         print("Mask: {}".format(info["mask"]))
-        print("Will block: {}".format(state["will_block"]))
         print()
