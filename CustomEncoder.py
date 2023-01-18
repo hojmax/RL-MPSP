@@ -74,15 +74,11 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
                 cols = subspace.shape[1]
                 extractors[key] = nn.Sequential(
                     # Long is required for embedding
-                    ToLong(),
+                    ToFloat(),
                     # We want to encode columns, not rows
                     Transpose(),
-                    self.Container_embedding,
-                    # Flatten the embedding dimension, keep batch and column
                     nn.Flatten(2),
-                    nn.Linear(
-                        rows * container_embedding_size, internal_hidden, device=device
-                    ),
+                    nn.Linear(rows, internal_hidden, device=device),
                     nn.Tanh(),
                     nn.Flatten(),
                 )
@@ -90,12 +86,9 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
             elif key == "container":
                 extractors[key] = nn.Sequential(
                     # Long is required for embedding
-                    ToLong(),
-                    self.Container_embedding,
-                    nn.Tanh(),
-                    nn.Flatten(),
+                    ToFloat(),
                 )
-                total_concat_size += container_embedding_size
+                total_concat_size += 1
             elif key == "transportation_matrix":
                 extractors[key] = TransportationEncoder(
                     n_ports, internal_hidden, device=device
