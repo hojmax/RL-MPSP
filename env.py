@@ -120,9 +120,6 @@ class MPSPEnv(gym.Env):
         self.column_counts = None
         self.port = None
         self.is_terminated = False
-        self.virtual_R = None
-        self.virtual_C = None
-        self.virtual_Capacity = None
 
     def set_virtual_dimensions(self, virtual_R, virtual_C):
         """Limits the number of rows and columns that are accessible to the agent"""
@@ -189,6 +186,8 @@ class MPSPEnv(gym.Env):
 
         # Port is zero indexed
         self.is_terminated = self.port + 1 == self.N
+
+        self._reorder_bay()
 
         info = {"mask": self.action_masks()}
 
@@ -696,6 +695,14 @@ class MPSPEnv(gym.Env):
             ordering.append(np.arange(i + 1, N))
 
         return self._get_transportation_matrix(N, ordering)
+
+    def _reorder_bay(self):
+        """Reorders the bay matrix sorted by the number of containers in each column"""
+        sorted_column_indices = np.argsort(-self.column_counts)
+
+        self.bay_matrix = self.bay_matrix[:, sorted_column_indices]
+        self.column_counts = self.column_counts[sorted_column_indices]
+        self.min_value_per_column = self.min_value_per_column[sorted_column_indices]
 
     def _get_long_distance_transportation_matrix(self, N):
         """Generates a feasible transportation matrix (long distance)"""
