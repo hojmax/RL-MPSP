@@ -68,11 +68,6 @@ config = {
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-env = make_vec_env(
-    lambda: MPSPEnv(config["ROWS"], config["COLUMNS"], config["N_PORTS"]),
-    # Take cores from command line, default to 8
-    n_envs=n_envs,
-)
 
 policy_kwargs = {
     "activation_fn": torch.nn.Tanh,
@@ -120,17 +115,6 @@ if random_training:
         lambda: RandomTrainingWrapper(make_remove_option_env()),
         n_envs=n_envs,
     )
-    if train_again:
-        print("Fine-tuning...")
-        model.learn(
-            total_timesteps=config["TOTAL_TIMESTEPS"],
-            callback=WandbCallback(
-                model_save_path=f"models/{run.id}",
-            )
-            if create_new_run
-            else None,
-            progress_bar=show_progress,
-        )
 else:
     env = make_vec_env(
         lambda: make_remove_option_env(),

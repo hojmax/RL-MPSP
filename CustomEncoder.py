@@ -22,12 +22,9 @@ class TransportationEncoder(nn.Module):
     def forward(self, x):
         x = x.to(self.device).float()
 
-        # Flatten the embedding dimension, keep batch and column
-        x = x.flatten(1)
+        _, hidden = self.rnn(x)
 
-        x = self.linear(x)
-
-        return x
+        return hidden.squeeze(0)
 
 
 class BayEncoder(nn.Module):
@@ -130,12 +127,7 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
                     nn.Linear(subspace.shape[0], internal_hidden, device=device),
                     nn.Tanh(),
                 )
-                total_concat_size += 1
-            elif key == "will_block":
-                extractors[key] = nn.Sequential(
-                    ToFloat(),
-                )
-                total_concat_size += subspace.shape[0]
+                total_concat_size += internal_hidden
 
         self.extractors = nn.ModuleDict(extractors)
 

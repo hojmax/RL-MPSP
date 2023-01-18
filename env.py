@@ -667,7 +667,7 @@ class MPSPEnv(gym.Env):
 
     def _get_observation(self):
 
-        next_container = self._get_last_destination_container()
+        next_container = self._get_next_container()
         will_block = self._get_will_block()
 
         return {
