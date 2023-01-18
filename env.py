@@ -477,8 +477,11 @@ class MPSPEnv(gym.Env):
         self.transportation_matrix[self.port, container] += 1
         self.column_counts[j] -= 1
 
-        # Penalize shifting containers
-        return -1
+        # Penalize shifting containers if container is not blocking
+        if self._get_blocking()[i, j] == 0:
+            return -1
+        else:
+            return 0
 
     def _add_container(self, i, j):
         """Adds container to bay and returns delta reward"""
