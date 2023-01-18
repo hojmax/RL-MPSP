@@ -3,7 +3,7 @@ from wandb.integration.sb3 import WandbCallback
 from sb3_contrib.ppo_mask import MaskablePPO
 from benchmark import get_benchmarking_data
 from CustomEncoder import CustomCombinedExtractor
-from env import MPSPEnv, NoRemoveWrapper, StrategicRemoveWrapper
+from env import MPSPEnv, NoRemoveWrapper, StrategicRemoveWrapper, RandomTrainingWrapper
 from tqdm import tqdm
 import numpy as np
 import torch
@@ -24,6 +24,7 @@ parser.add_argument("--tags", type=str, default=None)
 parser.add_argument("--notes", type=str, default=None)
 parser.add_argument("--n_envs", type=int, default=1)
 parser.add_argument("--remove_option", type=str, default="base")
+parser.add_argument("--random_training", action="store_true")
 
 args = parser.parse_args()
 
@@ -32,10 +33,12 @@ tags = args.tags.split(",") if args.tags else []
 wandb_run_path = args.wandb_run_path
 train_again = args.train_again
 log_wandb = args.wandb
+wandb_key = args.wandb_key
 show_progress = args.show_progress
 n_envs = args.n_envs
 remove_option = args.remove_option
 notes = args.notes
+random_training = args.random_training
 
 
 # Add automatic tags
@@ -62,14 +65,6 @@ config = {
     "_N_STEPS": 2048,
     "_GAMMA": 0.99,
 }
-# --------------
-
-wandb.login(
-    # Get key from command line, default to None
-    key=sys.argv[2]
-    if len(sys.argv) > 2
-    else None
-)
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -107,25 +102,37 @@ if create_new_run:
     )
 
 
-if remove_option == "base":
+def make_env():
+    return MPSPEnv(config["ROWS"], config["COLUMNS"], config["N_PORTS"])
+
+
+def make_remove_option_env():
+    if remove_option == "base":
+        return make_env()
+    elif remove_option == "no_remove":
+        return NoRemoveWrapper(make_env())
+    elif remove_option == "strategic_remove":
+        return StrategicRemoveWrapper(make_env())
+
+
+if random_training:
     env = make_vec_env(
-        lambda: MPSPEnv(config["ROWS"], config["COLUMNS"], config["N_PORTS"]),
+        lambda: RandomTrainingWrapper(make_remove_option_env()),
         n_envs=n_envs,
     )
-elif remove_option == "no_remove":
+else:
     env = make_vec_env(
-        lambda: NoRemoveWrapper(
-            MPSPEnv(config["ROWS"], config["COLUMNS"], config["N_PORTS"])
-        ),
+        lambda: make_remove_option_env(),
         n_envs=n_envs,
     )
-elif remove_option == "strategic_remove":
-    env = make_vec_env(
-        lambda: StrategicRemoveWrapper(
-            MPSPEnv(config["ROWS"], config["COLUMNS"], config["N_PORTS"])
-        ),
-        n_envs=n_envs,
+
+
+if log_wandb:
+    wandb.login(
+        # Get key from command line, default to None
+        key=wandb_key
     )
+
 
 if wandb_run_path:
     model_file = wandb.restore("model.zip", run_path=wandb_run_path)

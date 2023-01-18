@@ -17,6 +17,31 @@ class text_type(Enum):
     SUBHEADLINE = 28
 
 
+class RandomTrainingWrapper(gym.Wrapper):
+    """Gym Wrapper that randomizes the training environment with different virtual random"""
+
+    def __init__(self, env, eval_dimensions: list[tuple] = []):
+        super().__init__(env)
+        self.eval_dimensions = eval_dimensions
+
+    def reset(self):
+
+        # Get random dimensions that are not in eval_dimensions
+        random_dimensions = self._get_random_dimensions()
+        while random_dimensions in self.eval_dimensions:
+            random_dimensions = self._get_random_dimensions()
+
+        random_R, random_C = random_dimensions
+
+        self.env.set_virtual_dimensions(random_R, random_C)
+        return self.env.reset()
+
+    def _get_random_dimensions(self):
+        random_R = np.random.randint(2, self.env.R)
+        random_C = np.random.randint(2, self.env.C)
+        return random_R, random_C
+
+
 class NoRemoveWrapper(gym.Wrapper):
     def __init__(self, env):
         super().__init__(env)
@@ -56,6 +81,7 @@ class MPSPEnv(gym.Env):
         super(MPSPEnv, self).__init__()
         self.R = rows
         self.C = columns
+        self.set_virtual_dimensions(self.R, self.C)
         self.N = n_ports
         self.capacity = self.R * self.C
         self.screen = None
