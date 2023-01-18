@@ -122,6 +122,16 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
                     ToLong(),
                 )
                 total_concat_size += 1
+            elif key == "next_container":
+                extractors[key] = nn.Sequential(
+                    ToFloat(),
+                )
+                total_concat_size += 1
+            elif key == "will_block":
+                extractors[key] = nn.Sequential(
+                    ToFloat(),
+                )
+                total_concat_size += subspace.shape[0]
 
         self.extractors = nn.ModuleDict(extractors)
 

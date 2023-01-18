@@ -82,6 +82,12 @@ class MPSPEnv(gym.Env):
             low=0, high=np.iinfo(np.int32).max, shape=(self.N, self.N), dtype=np.int32
         )
 
+        next_container_def = spaces.Box(
+            low=0, high=self.N - 1, shape=(1,), dtype=np.int32
+        )
+
+        will_block_def = spaces.Box(low=0, high=1, shape=(self.C,), dtype=np.int32)
+
         # Give the virtual dimensions to observation space as intergers
         virtual_R_def = spaces.Box(low=0, high=self.R, shape=(1,), dtype=np.int32)
         virtual_C_def = spaces.Box(low=0, high=self.C, shape=(1,), dtype=np.int32)
@@ -92,6 +98,8 @@ class MPSPEnv(gym.Env):
                 "transportation_matrix": transportation_matrix_def,
                 "virtual_R": virtual_R_def,
                 "virtual_C": virtual_C_def,
+                "next_container": next_container_def,
+                "will_block": will_block_def,
             }
         )
 
@@ -481,7 +489,7 @@ class MPSPEnv(gym.Env):
         text_rect = text_surface.get_rect(center=pos)
         self.surface.blit(text_surface, text_rect)
 
-    def _get_last_destination_container(self):
+    def _get_next_container(self):
 
         container = -1
         for h in range(self.N - 1, 0, -1):
@@ -656,13 +664,15 @@ class MPSPEnv(gym.Env):
         return {
             "bay_matrix": self.bay_matrix,
             "transportation_matrix": self.transportation_matrix,
-            "virtual_R": self.virtual_R,
-            "virtual_C": self.virtual_C,
+            "virtual_R": np.array([self.virtual_R]),
+            "virtual_C": np.array([self.virtual_C]),
+            "next_container": np.array([self._get_next_container()]),
+            "will_block": self._get_will_block(),
         }
 
     def _get_will_block(self):
         """Returns a vector of size C, where each entry is 1 if the next container will block, 0 otherwise"""
-        next_container = self._get_last_destination_container()
+        next_container = self._get_next_container()
 
         if next_container == -1:
             # Last state, so no block
