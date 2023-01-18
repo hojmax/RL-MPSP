@@ -3,7 +3,7 @@ from wandb.integration.sb3 import WandbCallback
 from sb3_contrib.ppo_mask import MaskablePPO
 from benchmark import get_benchmarking_data
 from CustomEncoder import CustomCombinedExtractor
-from env import MPSPEnv
+from env import MPSPEnv, NoRemoveWrapper, StrategicRemoveWrapper
 from tqdm import tqdm
 import numpy as np
 import torch
@@ -14,9 +14,12 @@ import sys
 
 # --- Config ---
 tags = ["rnn", "relative port"]
+remove_option = "no_remove"
+tags += [remove_option]
 wandb_run_path = None
 train_again = True
-log_wandb = True
+log_wandb = False
+
 
 config = {
     # Environment
@@ -80,6 +83,28 @@ if create_new_run:
         notes=sys.argv[3] if len(sys.argv) > 3 else input("Notes: "),
         monitor_gym=True,
         tags=tags,
+    )
+
+n_envs = 8
+
+if remove_option == "base":
+    env = make_vec_env(
+        lambda: MPSPEnv(config["ROWS"], config["COLUMNS"], config["N_PORTS"]),
+        n_envs=n_envs,
+    )
+elif remove_option == "no_remove":
+    env = make_vec_env(
+        lambda: NoRemoveWrapper(
+            MPSPEnv(config["ROWS"], config["COLUMNS"], config["N_PORTS"])
+        ),
+        n_envs=n_envs,
+    )
+elif remove_option == "strategic_remove":
+    env = make_vec_env(
+        lambda: StrategicRemoveWrapper(
+            MPSPEnv(config["ROWS"], config["COLUMNS"], config["N_PORTS"])
+        ),
+        n_envs=n_envs,
     )
 
 if wandb_run_path:

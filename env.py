@@ -17,6 +17,32 @@ class text_type(Enum):
     SUBHEADLINE = 28
 
 
+class NoRemoveWrapper(gym.Wrapper):
+    def __init__(self, env):
+        super().__init__(env)
+        self.logic_mask = np.concatenate((np.ones(self.env.C), np.zeros(self.env.C)))
+
+    def action_masks(self):
+        mask = self.env.action_masks()
+        mask = np.logical_and(mask, self.logic_mask)
+        return mask
+
+
+class StrategicRemoveWrapper(gym.Wrapper):
+    def __init__(self, env):
+        super().__init__(env)
+        self.ones = np.ones(self.env.C)
+
+    def action_masks(self):
+        will_block = self.env._get_will_block()
+        logical_mask = np.concatenate(
+            (self.ones, will_block),
+        )
+        env_mask = self.env.action_masks()
+        mask = np.logical_and(env_mask, logical_mask)
+        return mask
+
+
 class MPSPEnv(gym.Env):
     """Environment for the Multi Port Shipping Problem"""
 
@@ -163,15 +189,15 @@ class MPSPEnv(gym.Env):
             )
 
         # Masking out empty columns
-        # remove_mask = self.column_counts > 0
-        will_block = self._get_will_block()
-        remove_mask = np.logical_and(
-            self.column_counts > 0,
-            # Can only remove containers that will block
-            will_block,
-        )
+        remove_mask = self.column_counts > 0
 
-        # remove_mask = self.column_counts < 0
+        # Masking out empty columns
+        if self.virtual_R is not None:
+            remove_mask = np.logical_and(
+                remove_mask,
+                # Can only use first virtual_C columns
+                np.arange(self.C) < self.virtual_C,
+            )
 
         mask = np.concatenate((add_mask, remove_mask), dtype=np.int8)
 
