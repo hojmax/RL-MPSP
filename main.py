@@ -10,15 +10,36 @@ import torch
 import wandb
 import gym
 import sys
+import argparse
 
+
+parser = argparse.ArgumentParser(description="My parser")
+
+parser.add_argument("--wandb", action="store_true")
+parser.add_argument("--wandb_key", type=str, default=None)
+parser.add_argument("--show_progress", action="store_true")
+parser.add_argument("--train_again", action="store_true")
+parser.add_argument("--wandb_run_path", type=str, default=None)
+parser.add_argument("--tags", type=str, default=None)
+parser.add_argument("--notes", type=str, default=None)
+parser.add_argument("--n_envs", type=int, default=1)
+parser.add_argument("--remove_option", type=str, default="base")
+
+args = parser.parse_args()
 
 # --- Config ---
-tags = ["rnn", "relative port"]
-remove_option = "no_remove"
-tags += [remove_option]
-wandb_run_path = None
-train_again = True
-log_wandb = False
+tags = args.tags.split(",") if args.tags else []
+wandb_run_path = args.wandb_run_path
+train_again = args.train_again
+log_wandb = args.wandb
+show_progress = args.show_progress
+n_envs = args.n_envs
+remove_option = args.remove_option
+notes = args.notes
+
+
+# Add automatic tags
+tags.append(remove_option)
 
 
 config = {
@@ -55,7 +76,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 env = make_vec_env(
     lambda: MPSPEnv(config["ROWS"], config["COLUMNS"], config["N_PORTS"]),
     # Take cores from command line, default to 8
-    n_envs=int(sys.argv[1]) if len(sys.argv) > 1 else 8,
+    n_envs=n_envs,
 )
 
 policy_kwargs = {
@@ -80,12 +101,11 @@ if create_new_run:
         name=f"N{config['N_PORTS']}_R{config['ROWS']}_C{config['COLUMNS']}",
         config=config,
         # Use command line arguments, otherwise input()
-        notes=sys.argv[3] if len(sys.argv) > 3 else input("Notes: "),
+        notes=notes or input("Notes: "),
         monitor_gym=True,
         tags=tags,
     )
 
-n_envs = 8
 
 if remove_option == "base":
     env = make_vec_env(
@@ -135,7 +155,7 @@ if train_again or not wandb_run_path:
         )
         if create_new_run
         else None,
-        progress_bar=True,
+        progress_bar=True if show_progress else False,
     )
 
 eval_data = get_benchmarking_data("rl-mpsp-benchmark/set_2")
