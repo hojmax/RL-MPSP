@@ -43,6 +43,8 @@ random_training = args.random_training
 
 # Add automatic tags
 tags.append(remove_option)
+if random_training:
+    tags.append("random_training")
 
 
 config = {
@@ -57,7 +59,7 @@ config = {
     "OUTPUT_HIDDEN": 256,
     "INTERNAL_HIDDEN": 32,
     # Training
-    "TOTAL_TIMESTEPS": 3_000_000,
+    "TOTAL_TIMESTEPS": 2_000_000,
     "_ENT_COEF": 0,
     "_LEARNING_RATE": 1e-4,
     "_N_EPOCHS": 3,
@@ -185,7 +187,7 @@ max_iter = 1000
 
 for e in tqdm(eval_data, desc="Evaluating"):
     # Creating seperate env for evaluation
-    env = MPSPEnv(config["ROWS"], config["COLUMNS"], config["N_PORTS"])
+    env = make_remove_option_env()
     env = gym.wrappers.RecordVideo(
         env,
         video_folder=f'video/N{config["N_PORTS"]}_R{config["ROWS"]}_C{config["COLUMNS"]}_S{e["seed"]}',
