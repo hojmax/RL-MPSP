@@ -13,7 +13,7 @@ import sys
 
 
 # --- Config ---
-tags = ["rnn"]
+tags = ["rnn", "relative port"]
 wandb_run_path = None
 train_again = True
 log_wandb = True

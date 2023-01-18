@@ -12,21 +12,11 @@ class Transpose(nn.Module):
 
 
 class TransportationEncoder(nn.Module):
-    def __init__(
-        self,
-        n_ports,
-        hidden_size,
-        device='cpu'
-    ):
+    def __init__(self, n_ports, hidden_size, device="cpu"):
         super().__init__()
         self.n_ports = n_ports
         self.hidden_size = hidden_size
-        self.rnn = nn.RNN(
-            n_ports,
-            hidden_size,
-            device=device,
-            batch_first=True
-        )
+        self.rnn = nn.RNN(n_ports, hidden_size, device=device, batch_first=True)
         self.device = device
 
     def forward(self, x):
@@ -64,27 +54,22 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
         container_embedding_size,
         internal_hidden,
         output_hidden,
-        device='cpu'
+        device="cpu",
     ):
         # We do not know features-dim here before going over all the items,
         # so put something dummy for now. PyTorch requires calling
         # nn.Module.__init__ before adding modules
-        super(CustomCombinedExtractor, self).__init__(
-            observation_space,
-            features_dim=1
-        )
+        super(CustomCombinedExtractor, self).__init__(observation_space, features_dim=1)
         extractors = {}
         self.Container_embedding = nn.Embedding(
-            n_ports,
-            container_embedding_size,
-            device=device
+            n_ports, container_embedding_size, device=device
         )
 
         total_concat_size = 0
         # We need to know size of the output of this extractor,
         # so go over all the spaces and compute output feature sizes
         for key, subspace in observation_space.spaces.items():
-            if key == 'bay_matrix':
+            if key == "bay_matrix":
                 rows = subspace.shape[0]
                 cols = subspace.shape[1]
                 extractors[key] = nn.Sequential(
@@ -96,47 +81,30 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
                     # Flatten the embedding dimension, keep batch and column
                     nn.Flatten(2),
                     nn.Linear(
-                        rows * container_embedding_size,
-                        internal_hidden,
-                        device=device
+                        rows * container_embedding_size, internal_hidden, device=device
                     ),
                     nn.Tanh(),
-                    nn.Flatten()
+                    nn.Flatten(),
                 )
                 total_concat_size += cols * internal_hidden
-            elif key == 'container':
+            elif key == "container":
                 extractors[key] = nn.Sequential(
                     # Long is required for embedding
                     ToLong(),
                     self.Container_embedding,
                     nn.Tanh(),
-                    nn.Flatten()
+                    nn.Flatten(),
                 )
                 total_concat_size += container_embedding_size
-            elif key == 'port':
-                extractors[key] = nn.Sequential(
-                    # Long is required for embedding
-                    ToLong(),
-                    self.Container_embedding,
-                    nn.Tanh(),
-                    nn.Flatten()
-                )
-                total_concat_size += container_embedding_size
-            elif key == 'transportation_matrix':
+            elif key == "transportation_matrix":
                 extractors[key] = TransportationEncoder(
-                    n_ports,
-                    internal_hidden,
-                    device=device
+                    n_ports, internal_hidden, device=device
                 )
                 total_concat_size += internal_hidden
-            elif key == 'will_block':
+            elif key == "will_block":
                 extractors[key] = nn.Sequential(
                     ToFloat(),
-                    nn.Linear(
-                        subspace.shape[0],
-                        internal_hidden,
-                        device=device
-                    ),
+                    nn.Linear(subspace.shape[0], internal_hidden, device=device),
                     nn.Tanh(),
                 )
                 total_concat_size += internal_hidden
@@ -161,9 +129,7 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
 
             # We are given a (Batch, Height, Width) PyTorch tensor
             encoded_tensor_list.append(
-                extractor(
-                    observations[key].to(self.device)
-                ).to(self.device)
+                extractor(observations[key].to(self.device)).to(self.device)
             )
 
         # Return a (B, self._features_dim) PyTorch tensor, where B is batch dimension.
