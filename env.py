@@ -59,6 +59,7 @@ class MPSPEnv(gym.Env):
         self.C = columns
         self.N = n_ports
         self.capacity = self.R * self.C
+        self.set_virtual_dimensions(self.R, self.C)
         self.screen = None
         self.colors = None
         self.probs = None
@@ -81,10 +82,16 @@ class MPSPEnv(gym.Env):
             low=0, high=np.iinfo(np.int32).max, shape=(self.N, self.N), dtype=np.int32
         )
 
+        # Give the virtual dimensions to observation space as intergers
+        virtual_R_def = spaces.Box(low=0, high=self.R, shape=(1,), dtype=np.int32)
+        virtual_C_def = spaces.Box(low=0, high=self.C, shape=(1,), dtype=np.int32)
+
         self.observation_space = spaces.Dict(
             {
                 "bay_matrix": bay_matrix_def,
                 "transportation_matrix": transportation_matrix_def,
+                "virtual_R": virtual_R_def,
+                "virtual_C": virtual_C_def,
             }
         )
 
@@ -93,9 +100,6 @@ class MPSPEnv(gym.Env):
         self.column_counts = None
         self.port = None
         self.is_terminated = False
-        self.virtual_R = None
-        self.virtual_C = None
-        self.virtual_Capacity = None
 
     def set_virtual_dimensions(self, virtual_R, virtual_C):
         """Limits the number of rows and columns that are accessible to the agent"""
@@ -114,6 +118,7 @@ class MPSPEnv(gym.Env):
         """Reset the state of the environment to an initial state"""
         self.seed(seed)
         self.loading_list = []
+        # self._set_random_virtual_dimensions()
         self.transportation_matrix = (
             self._get_mixed_distance_transportation_matrix(self.N)
             if transportation_matrix is None
@@ -186,8 +191,15 @@ class MPSPEnv(gym.Env):
                 np.arange(self.C) < self.virtual_C,
             )
 
-        # Masking out empty columns
         remove_mask = self.column_counts > 0
+
+        # Masking out empty columns
+        if self.virtual_R is not None:
+            remove_mask = np.logical_and(
+                remove_mask,
+                # Can only use first virtual_C columns
+                np.arange(self.C) < self.virtual_C,
+            )
 
         mask = np.concatenate((add_mask, remove_mask), dtype=np.int8)
 
@@ -644,6 +656,8 @@ class MPSPEnv(gym.Env):
         return {
             "bay_matrix": self.bay_matrix,
             "transportation_matrix": self.transportation_matrix,
+            "virtual_R": self.virtual_R,
+            "virtual_C": self.virtual_C,
         }
 
     def _get_will_block(self):
@@ -655,6 +669,14 @@ class MPSPEnv(gym.Env):
             return np.zeros(self.C, dtype=np.int32)
         else:
             return self.min_value_per_column < next_container
+
+    def _set_random_virtual_dimensions(self):
+        """Sets the virtual dimensions to a random value"""
+        # TODO: Generate new if same as evaluation dimensions
+        random_R = np.random.randint(1, self.R)
+        random_C = np.random.randint(1, self.C)
+
+        self.set_virtual_dimensions(random_R, random_C)
 
     def _get_mixed_distance_transportation_matrix(self, N):
         """Generates a feasible transportation matrix (mixed distance)"""

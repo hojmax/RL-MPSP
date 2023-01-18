@@ -16,11 +16,7 @@ class TransportationEncoder(nn.Module):
         super().__init__()
         self.n_ports = n_ports
         self.hidden_size = hidden_size
-        # self.linear = nn.Linear(
-        #     n_ports,
-        #     hidden_size,
-        #     device=device
-        # )
+        self.linear = nn.Linear(n_ports**2, hidden_size, device=device)
         self.device = device
 
     def forward(self, x):
@@ -28,6 +24,8 @@ class TransportationEncoder(nn.Module):
 
         # Flatten the embedding dimension, keep batch and column
         x = x.flatten(1)
+
+        x = self.linear(x)
 
         return x
 
@@ -113,7 +111,17 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
                 extractors[key] = TransportationEncoder(
                     n_ports, internal_hidden, device=device
                 )
-                total_concat_size += n_ports * n_ports
+                total_concat_size += internal_hidden
+            elif key == "virtual_R":
+                extractors[key] = nn.Sequential(
+                    ToLong(),
+                )
+                total_concat_size += 1
+            elif key == "virtual_C":
+                extractors[key] = nn.Sequential(
+                    ToLong(),
+                )
+                total_concat_size += 1
 
         self.extractors = nn.ModuleDict(extractors)
 

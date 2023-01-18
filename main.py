@@ -35,8 +35,8 @@ show_progress = args.show_progress
 
 config = {
     # Environment
-    "ROWS": 10,
-    "COLUMNS": 4,
+    "ROWS": 12,
+    "COLUMNS": 12,
     "N_PORTS": 10,
     # Model
     "PI_LAYER_SIZES": [128, 128],
@@ -46,7 +46,7 @@ config = {
     "INTERNAL_HIDDEN": 128,
     "LSTM_HIDDEN": 200,
     # Training
-    "TOTAL_TIMESTEPS": 4e6,
+    "TOTAL_TIMESTEPS": 0.5e6,
     "_ENT_COEF": 0,
     "_LEARNING_RATE": 1.5e-4,
     "_N_EPOCHS": 3,
