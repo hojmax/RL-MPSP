@@ -181,6 +181,8 @@ eval_rewards = []
 paper_rewards = [-e["paper_result"] for e in eval_data]
 paper_seeds = [e["seed"] for e in eval_data]
 
+max_iter = 1000
+
 for e in tqdm(eval_data, desc="Evaluating"):
     # Creating seperate env for evaluation
     env = MPSPEnv(config["ROWS"], config["COLUMNS"], config["N_PORTS"])
@@ -193,7 +195,8 @@ for e in tqdm(eval_data, desc="Evaluating"):
     obs = env.reset(transportation_matrix=e["transportation_matrix"])
 
     done = False
-    while not done:
+    iter = 0
+    while not done and iter < max_iter:
         action_mask = env.action_masks()
         action, _ = model.predict(
             obs,
@@ -209,6 +212,7 @@ for e in tqdm(eval_data, desc="Evaluating"):
         env.render()
         obs, reward, done, _ = env.step(action)
         total_reward += reward
+        iter += 1
 
     eval_rewards.append(total_reward)
 
