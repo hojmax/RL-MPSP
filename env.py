@@ -147,8 +147,14 @@ class MPSPEnv(gym.Env):
     def seed(self, seed=None):
         np.random.seed(seed)
 
-    def reset(self, transportation_matrix=None, seed=None):
+    def reset(
+        self, transportation_matrix=None, seed=None, virtual_R=None, virtual_C=None
+    ):
         """Reset the state of the environment to an initial state"""
+
+        if virtual_R is not None and virtual_C is not None:
+            self.set_virtual_dimensions(virtual_R, virtual_C, self.N)
+
         self.seed(seed)
         T = (
             self._get_mixed_distance_transportation_matrix(
@@ -159,7 +165,8 @@ class MPSPEnv(gym.Env):
         )
         # Apply virtual transportation matrix to full transportation matrix
         self.transportation_matrix = np.zeros((self.N, self.N), dtype=np.int32)
-        self.transportation_matrix[: self.virtual_N, : self.virtual_N] = T
+        T_size = T.shape[0]
+        self.transportation_matrix[:T_size, :T_size] = T
 
         self.bay_matrix = np.zeros((self.R, self.C), dtype=np.int32)
         self.column_counts = np.zeros(self.C, dtype=np.int32)

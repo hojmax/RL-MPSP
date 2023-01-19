@@ -11,8 +11,8 @@ import wandb
 import gym
 
 # --- Config ---
-wandb_run_path = "rl-msps/PPO-SB3/2hdkxmf7"
-remove_option = "strategic_remove"
+wandb_run_path = "rl-msps/PPO-SB3/zupub3s6"
+remove_option = "no_remove"
 max_iter = 1000
 config = {
     # Environment
@@ -64,7 +64,9 @@ for e in tqdm(eval_data, desc="Evaluating"):
 
     # Creating seperate env for evaluation
     total_reward = 0
-    obs = env.reset(transportation_matrix=e["transportation_matrix"])
+    obs = env.reset(
+        transportation_matrix=e["transportation_matrix"], virtual_C=C, virtual_R=R
+    )
 
     done = False
     iter = 0
@@ -75,7 +77,7 @@ for e in tqdm(eval_data, desc="Evaluating"):
             action_masks=action_mask,
             deterministic=True,  # Deterministic for evaluation
         )
-        env.render()
+        # env.render()
         obs, reward, done, _ = env.step(action)
         total_reward += reward
         iter += 1
