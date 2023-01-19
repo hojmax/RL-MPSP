@@ -70,12 +70,6 @@ config = {
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-env = make_vec_env(
-    lambda: MPSPEnv(config["ROWS"], config["COLUMNS"], config["N_PORTS"]),
-    # Take cores from command line, default to 8
-    n_envs=n_envs,
-)
-
 policy_kwargs = {
     "activation_fn": torch.nn.Tanh,
     "net_arch": [{"pi": config["PI_LAYER_SIZES"], "vf": config["VF_LAYER_SIZES"]}],
