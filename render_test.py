@@ -1,9 +1,10 @@
-from env import MPSPEnv
+from env import MPSPEnv, NoRemoveWrapper, StrategicRemoveWrapper, RandomTrainingWrapper
 import numpy as np
 import gym
 import torch
 
-env = MPSPEnv(10, 4, 10)
+env = RandomTrainingWrapper(MPSPEnv(10, 4, 10))
+
 
 env = gym.wrappers.RecordVideo(env, video_folder=f"video/test")
 obs = env.reset()

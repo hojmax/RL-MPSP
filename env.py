@@ -24,6 +24,15 @@ class RandomTrainingWrapper(gym.Wrapper):
         super().__init__(env)
         self.eval_dimensions = eval_dimensions
 
+        # Make the above more performant
+        self.all_dimensions = [
+            (R, C, N)
+            for R in range(2, self.env.R)
+            for C in range(2, self.env.C)
+            for N in range(2, self.env.N)
+            if (R, C, N) not in self.eval_dimensions
+        ]
+
     def reset(self):
 
         # Get random dimensions that are not in eval_dimensions
@@ -31,15 +40,16 @@ class RandomTrainingWrapper(gym.Wrapper):
         while random_dimensions in self.eval_dimensions:
             random_dimensions = self._get_random_dimensions()
 
-        random_R, random_C = random_dimensions
+        random_R, random_C, random_N = random_dimensions
 
-        self.env.set_virtual_dimensions(random_R, random_C)
+        self.env.set_virtual_dimensions(random_R, random_C, random_N)
         return self.env.reset()
 
     def _get_random_dimensions(self):
-        random_R = np.random.randint(2, self.env.R)
-        random_C = np.random.randint(2, self.env.C)
-        return random_R, random_C
+        # Pick random dimensions from all_dimensions
+        random_index = np.random.randint(len(self.all_dimensions))
+        random_dimensions = self.all_dimensions[random_index]
+        return random_dimensions
 
 
 class NoRemoveWrapper(gym.Wrapper):
@@ -81,8 +91,8 @@ class MPSPEnv(gym.Env):
         super(MPSPEnv, self).__init__()
         self.R = rows
         self.C = columns
-        self.set_virtual_dimensions(self.R, self.C)
         self.N = n_ports
+        self.set_virtual_dimensions(self.R, self.C, self.N)
         self.capacity = self.R * self.C
         self.screen = None
         self.colors = None
@@ -121,14 +131,17 @@ class MPSPEnv(gym.Env):
         self.port = None
         self.is_terminated = False
 
-    def set_virtual_dimensions(self, virtual_R, virtual_C):
+    def set_virtual_dimensions(self, virtual_R, virtual_C, virtual_N):
         """Limits the number of rows and columns that are accessible to the agent"""
         assert virtual_R <= self.R, "Virtual R must be smaller than R"
         assert virtual_C <= self.C, "Virtual C must be smaller than C"
         assert virtual_R > 0, "Virtual R must be strictly positive"
         assert virtual_C > 0, "Virtual C must be strictly positive"
+        assert virtual_N <= self.N, "Virtual N must be smaller than N"
+
         self.virtual_R = virtual_R
         self.virtual_C = virtual_C
+        self.virtual_N = virtual_N
         self.virtual_Capacity = self.virtual_R * self.virtual_C
 
     def seed(self, seed=None):
@@ -137,11 +150,17 @@ class MPSPEnv(gym.Env):
     def reset(self, transportation_matrix=None, seed=None):
         """Reset the state of the environment to an initial state"""
         self.seed(seed)
-        self.transportation_matrix = (
-            self._get_mixed_distance_transportation_matrix(self.N)
+        T = (
+            self._get_mixed_distance_transportation_matrix(
+                self.virtual_N if self.virtual_N else self.N
+            )
             if transportation_matrix is None
             else transportation_matrix
         )
+        # Apply virtual transportation matrix to full transportation matrix
+        self.transportation_matrix = np.zeros((self.N, self.N), dtype=np.int32)
+        self.transportation_matrix[: self.virtual_N, : self.virtual_N] = T
+
         self.bay_matrix = np.zeros((self.R, self.C), dtype=np.int32)
         self.column_counts = np.zeros(self.C, dtype=np.int32)
         # Initialize to max values
