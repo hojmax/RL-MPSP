@@ -49,9 +49,9 @@ if random_training:
 
 config = {
     # Environment
-    "ROWS": 10,
-    "COLUMNS": 4,
-    "N_PORTS": 10,
+    "ROWS": 14,
+    "COLUMNS": 14,
+    "N_PORTS": 16,
     # Model
     "PI_LAYER_SIZES": [64, 64],
     "VF_LAYER_SIZES": [64, 64],
@@ -59,7 +59,7 @@ config = {
     "OUTPUT_HIDDEN": 256,
     "INTERNAL_HIDDEN": 32,
     # Training
-    "TOTAL_TIMESTEPS": 2_000_000,
+    "TOTAL_TIMESTEPS": 4_000_000,
     "_ENT_COEF": 0,
     "_LEARNING_RATE": 1e-4,
     "_N_EPOCHS": 3,
@@ -111,9 +111,14 @@ def make_remove_option_env():
         return StrategicRemoveWrapper(make_env())
 
 
+eval_dimensions = [
+    (R, C, N) for R in range(6, 14, 2) for C in range(2, 14, 2) for N in range(4, 18, 2)
+]
+
+
 if random_training:
     env = make_vec_env(
-        lambda: RandomTrainingWrapper(make_remove_option_env()),
+        lambda: RandomTrainingWrapper(make_remove_option_env(), eval_dimensions),
         n_envs=n_envs,
     )
 else:
