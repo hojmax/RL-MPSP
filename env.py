@@ -27,9 +27,9 @@ class RandomTrainingWrapper(gym.Wrapper):
         # Make the above more performant
         self.all_dimensions = [
             (R, C, N)
-            for R in range(2, self.env.R)
-            for C in range(2, self.env.C)
-            for N in range(2, self.env.N)
+            for R in range(2, self.env.R + 1)
+            for C in range(2, self.env.C + 1)
+            for N in range(2, self.env.N + 1)
             if (R, C, N) not in self.eval_dimensions
         ]
 

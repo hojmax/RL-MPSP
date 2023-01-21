@@ -49,17 +49,17 @@ if random_training:
 
 config = {
     # Environment
-    "ROWS": 14,
-    "COLUMNS": 14,
+    "ROWS": 12,
+    "COLUMNS": 12,
     "N_PORTS": 16,
     # Model
-    "PI_LAYER_SIZES": [64, 64],
-    "VF_LAYER_SIZES": [64, 64],
+    "PI_LAYER_SIZES": [128, 128],
+    "VF_LAYER_SIZES": [128, 128],
     "CONTAINER_EMBEDDING_SIZE": 8,
     "OUTPUT_HIDDEN": 256,
     "INTERNAL_HIDDEN": 32,
     # Training
-    "TOTAL_TIMESTEPS": 4_000_000,
+    "TOTAL_TIMESTEPS": 30_000_000,
     "_ENT_COEF": 0,
     "_LEARNING_RATE": 1e-4,
     "_N_EPOCHS": 3,
@@ -111,9 +111,10 @@ def make_remove_option_env():
         return StrategicRemoveWrapper(make_env())
 
 
-eval_dimensions = [
-    (R, C, N) for R in range(6, 14, 2) for C in range(2, 14, 2) for N in range(4, 18, 2)
-]
+# eval_dimensions = [
+#     (R, C, N) for R in range(6, 14, 2) for C in range(2, 14, 2) for N in range(4, 18, 2)
+# ]
+eval_dimensions = []
 
 
 if random_training:
