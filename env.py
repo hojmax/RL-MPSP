@@ -168,10 +168,16 @@ class MPSPEnv(gym.Env):
         T_size = T.shape[0]
         self.transportation_matrix[:T_size, :T_size] = T
 
-        self.bay_matrix = np.zeros((self.R, self.C), dtype=np.int32)
-        self.column_counts = np.zeros(self.C, dtype=np.int32)
+        # Initialize bay matrix
+        self.bay_matrix = np.full((self.R, self.C), self.N, dtype=np.int32)
+        self.bay_matrix[: self.virtual_R, self.C - self.virtual_C :] = 0
+
+        # self.column_counts = np.zeros(self.C, dtype=np.int32)
+        self.column_counts = np.full(self.C, self.R - self.virtual_R, dtype=np.int32)
+        self.column_counts[: self.C - self.virtual_C] = self.R
+
         # Initialize to max values
-        self.min_value_per_column = np.full(self.C, np.iinfo(np.int32).max)
+        self.min_value_per_column = np.full(self.C, self.N + 1, dtype=np.int32)
         self.port = 0
         self.reward = 0
         self.is_terminated = False
@@ -225,30 +231,19 @@ class MPSPEnv(gym.Env):
         """Returns a mask for the actions (True if the action is valid, False otherwise)."""
 
         # Masking out full columns
-        add_mask = (
-            self.column_counts < self.R
-            if self.virtual_R is None
-            else self.column_counts < self.virtual_R
-        )
-
-        if self.virtual_C is not None:
-            # Masking out columns that are not accessible
-            add_mask = np.logical_and(
-                add_mask,
-                # Can only use first virtual_C columns
-                np.arange(self.C) < self.virtual_C,
-            )
+        add_mask = self.column_counts < self.R
 
         # Masking out empty columns
         remove_mask = self.column_counts > 0
 
-        # Masking out empty columns
-        if self.virtual_R is not None:
-            remove_mask = np.logical_and(
-                remove_mask,
-                # Can only use first virtual_C columns
-                np.arange(self.C) < self.virtual_C,
-            )
+        # Mask out removing columns with container to N
+        remove_mask = np.logical_and(
+            remove_mask,
+            self.bay_matrix[
+                self.R - np.maximum(self.column_counts, 1), np.arange(self.C)
+            ]
+            != self.N,
+        )
 
         mask = np.concatenate((add_mask, remove_mask), dtype=np.int8)
 
@@ -287,7 +282,7 @@ class MPSPEnv(gym.Env):
             # self.colors = {i: color for i, color in enumerate(helpers.get_color_gradient('#A83279', '#D38312', self.N))}
             # Random distinct light colors without helper
             self.colors = {
-                i: tuple(np.random.randint(128, 255, size=3)) for i in range(self.N)
+                i: tuple(np.random.randint(128, 255, size=3)) for i in range(self.N + 1)
             }
 
         # Fill background
@@ -601,7 +596,9 @@ class MPSPEnv(gym.Env):
         self._offload_containers()
 
         # Subtract 1 from all containers in the bay
-        self.bay_matrix[self.bay_matrix > 0] -= 1
+        self.bay_matrix[
+            np.logical_and(self.bay_matrix > 0, self.bay_matrix != self.N)
+        ] -= 1
 
         # Update min_value_per_column
         for j in range(self.C):
