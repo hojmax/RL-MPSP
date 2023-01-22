@@ -101,16 +101,6 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
                     nn.Tanh(),
                 )
                 total_concat_size += internal_hidden
-            elif key == "virtual_R":
-                extractors[key] = nn.Sequential(
-                    ToFloat(),
-                )
-                total_concat_size += 1
-            elif key == "virtual_C":
-                extractors[key] = nn.Sequential(
-                    ToFloat(),
-                )
-                total_concat_size += 1
 
         self.extractors = nn.ModuleDict(extractors)
 
