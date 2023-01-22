@@ -57,9 +57,9 @@ config = {
     "VF_LAYER_SIZES": [128, 128],
     "CONTAINER_EMBEDDING_SIZE": 8,
     "OUTPUT_HIDDEN": 256,
-    "INTERNAL_HIDDEN": 32,
+    "INTERNAL_HIDDEN": 128,
     # Training
-    "TOTAL_TIMESTEPS": 30_000_000,
+    "TOTAL_TIMESTEPS": 80_000_000,
     "_ENT_COEF": 0,
     "_LEARNING_RATE": 1e-4,
     "_N_EPOCHS": 3,

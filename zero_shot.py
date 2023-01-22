@@ -11,7 +11,7 @@ import wandb
 import gym
 
 # --- Config ---
-wandb_run_path = "rl-msps/PPO-SB3/2kg99vhp"
+wandb_run_path = "rl-msps/PPO-SB3/2y803msd"
 remove_option = "strategic_remove"
 max_iter = 1000
 config = {
